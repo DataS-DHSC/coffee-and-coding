@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Becoming a regexpert</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Martine Wauben" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link rel="stylesheet" href="my-theme.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Becoming a regexpert
+### Martine Wauben
+### DHSC
+### 2020-03-04 (updated: 2020-03-05)
+
+---
+
+
+
+
+
+class: inverse
+
+# Session overview
+
+* What are regular expressions?
+* Why should you use them?
+* The basics
+* R and regex
+* Why you shouldn't use them
+* Regexercises
+
+---
+
+# Regular expressions
+
+Also known as *regex* or *regexp*: they are a way to **describe patterns in strings of text**.
+
+They have numerous, enormously powerful applications, both in analysis and in data collection. 
+
+.center[![](https://miro.medium.com/max/1307/1*crvBQeo8YijDR4hQI6oUow.gif)]
+
+---
+
+# Why should you use them?
+
+**Finding patterns in data**
+
+For example, filtering data to relevant cases, or helping find connections in data beyond literal, exact matches. 
+
+One example: London ONS Local Authority District codes start with 'E09'. Using regex, we can make a 'London' variable in a single line: 
+
+--
+
+
+
+```r
+local_authorities$London &lt;- grepl('^E09', # Means: 'starts with E09'
+                                  local_authorities$district_codes)
+```
+
+
+&lt;table&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;"&gt; district_codes &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; London &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; E06000005 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; FALSE &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; E09000047 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; TRUE &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; E09000001 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; TRUE &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; E06000002 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; FALSE &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; E06000057 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; FALSE &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+---
+
+# Why should you use them?
+
+.pull-left[
+
+
+* **Guarding against incorrect data entry**: avoid collecting incorrectly formatted data, or provide helpful error messages if you receive incorrectly formatted input. 
+]
+
+--
+
+.pull-right[
+![](https://i.pinimg.com/originals/91/85/f2/9185f2b02a4db2fd95b79b2d807a87ab.jpg)
+]
+
+---
+
+# The basics
+
+**Matching exact strings**
+
+
+```r
+grepl('apple', x)
+```
+
+&lt;img src="https://lh3.googleusercontent.com/proxy/1KAEVCzN6Qw_UtWZzGcmvwxcrVMvrQVai_3WPGNogWONWKXaZORK73w8A8gWD_gtL9zenD7MWKSKRR5RSw3DuP-GK_Vf87M" height="20px" width="20px" /&gt; apple
+
+&lt;img src="https://lh3.googleusercontent.com/proxy/1KAEVCzN6Qw_UtWZzGcmvwxcrVMvrQVai_3WPGNogWONWKXaZORK73w8A8gWD_gtL9zenD7MWKSKRR5RSw3DuP-GK_Vf87M" height="20px" width="20px" /&gt; pineapple
+
+&lt;img src="https://lh3.googleusercontent.com/proxy/7tVkJ3zo2NDdsk7mV_Axc4zhU-9rl3a9QiziZw0VCSWgIcmjugP0k3X4txYmcy0uWk_ydxBtsaxSU_EPhipv45vqtgkiQBQFjegzZ3ZPx2Csg0wwEtm-HQ" height = "20px" width = "20px" /&gt; lemon
+
+&lt;img src="https://lh3.googleusercontent.com/proxy/7tVkJ3zo2NDdsk7mV_Axc4zhU-9rl3a9QiziZw0VCSWgIcmjugP0k3X4txYmcy0uWk_ydxBtsaxSU_EPhipv45vqtgkiQBQFjegzZ3ZPx2Csg0wwEtm-HQ" height = "20px" width = "20px" /&gt; Apple
+
+
+---
+# The basics
+
+**Matching magic characters**
+
+| Magic character | Meaning | Example matches |
+| ---- | ---- | ---- | 
+| . | Matches any character | '.a' matches 'pineapple', not 'apple' |
+| \d | Matches any digit | matches '4', not 'four' |
+| \s | Matches any whitespace | matches 'pine apple', not 'pineapple |
+| [abc] | Matches a, b, or c | matches 'apple', not 'lemon |
+| [^abc] | Matches anything except a, b, or c | matches 'lemon', not 'apple' |
+| [a-e] | Character in range a-e | matches 'apple' AND 'lemon' |
+| [a-z] | Any lowercase character | matches 'four', not '4' |
+| [a-zA-Z] | Any lower or uppercase character | matches 'apple' AND 'Apple' |
+
+---
+
+# The basics
+
+**Anchors**
+
+| Magic character | Meaning | Example matches |
+| ---- | ---- | ---- | 
+| ^ | Start of string | '[^a]' matches 'apple', not 'pineapple' |
+| $ | End of string | '[a$]' matches 'banana', not 'apple' |
+| &lt;img src='https://static.thenounproject.com/png/109106-200.png' height = 20px width = 20px /&gt;b | Word boundary | '&lt;img src='https://static.thenounproject.com/png/109106-200.png' height = 20px width = 20px /&gt;bapple' matches 'apple', not 'pineapple' |
+
+
+---
+
+# The basics
+
+
+**Repetition**
+
+
+| Magic character | Meaning |
+| ---- | ---- | 
+| ? | 0 or 1 |
+| + | 1 or more |
+| * | 0 or more |
+| {n} | Exactly n times |
+| {n,} | n or more |
+| {,m} | m at most | 
+| {n,m} | Between n and m times |
+
+
+---
+
+class: inverse 
+
+# Regexample
+
+With these tools, you can start doing powerful things. What does this match?
+
+.center[
+### ^[A-Z][a-z]*$
+]
+
+--
+
+* **^** - start of the string
+* **[A-Z]** - capital letter
+* **[a-z]** - any lowercase letter
+* \* - one or more times
+* **$** - end of the string
+
+--
+
+ie.: **A single word that starts with a capital letter but is otherwise lowercase**
+
+---
+
+# The weird bits
+
+
+Some idiosyncracies are not so obvious:
+
+* Matches never overlap. *'Banana' matches 'ana' ONCE, not twice.*
+* You can use '|' to match one of multiple patterns. *'(abc)|(def)' will match either 'abc' or 'def'.*
+* You can use parentheses like in mathematical expressions. *'T(i|o)m' will match either 'Tim' or 'Tom'.*
+
+.center[![](https://i.giphy.com/Qe5oD5aXjEbKw.gif)]
+
+---
+
+# Escaping the magic
+
+These magic characters are helpful, but what if you want to match the character?
+
+&gt; Basic regex: '\\.' matches a literal .
+
+--
+
+However, backslashes have special meaning in R. This means you have to escape both the escape symbol AND the special character.
+
+&gt; R regex: '\\\\.' matches a literal .
+
+--
+
+It can get pretty intense... What does this match?
+
+&gt; '\\\\\\\\'
+
+--
+
+.center[![](https://imgs.xkcd.com/comics/backslashes.png)]
+
+---
+
+
+# There is a cheat sheet!
+
+https://rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
+
+
+
+
+.center[
+![](https://media1.giphy.com/media/l4FGAREbOSRLKMiNq/giphy.gif)
+]
+
+---
+
+# Useful R functions
+
+Show you how a character vector and a regular expression match
+
+```r
+stringr::str_view(string, pattern)
+```
+Extract only the parts of the string that match the regex
+
+```r
+stringr::str_extract(string, pattern)
+```
+Return the index position of matches
+
+```r
+stringr::str_detect(string, pattern) //// grep(pattern, string)
+```
+Returns a logical vector (so you can count the number of matches using sum())
+
+```r
+stringr::str_which(string, pattern)  //// grepl(pattern, string)
+```
+Replace matches with another (defined) string
+
+```r
+stringr::str_replace(string, pattern) //// gsub(pattern, string)
+```
+
+
+
+---
+
+# Why you shouldn't use them
+
+
+
+&gt; ## Some people, when confronted with a problem, think “I know, I’ll use regular expressions.” Now they have two problems.
+&gt;                  - Jamie Zawinski
+
+---
+
+# Why you shouldn't use them
+
+It can get wildly out of hand. This is a regex to check the validity of e-mail addresses, from http://www.ex-parrot.com/~pdw/Mail-RFC822-Address.html
+
+&gt; (?:(?:\r\n)?[ \t])*(?:(?:(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t] )+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?: \r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:( ?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\0 31]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\ ](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+ (?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?: (?:\r\n)?[ \t])*))*|(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z |(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n) ?[ \t])*)*\&lt;(?:(?:\r\n)?[ \t])*(?:@(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\ r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n) ?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t] )*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])* )(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t] )+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*) *:(?:(?:\r\n)?[ \t])*)?(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+ |\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r \n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?: \r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t ]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031 ]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\]( ?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(? :(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(? :\r\n)?[ \t])*))*\&gt;(?:(?:\r\n)?[ \t])*)|(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(? :(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)? [ \t]))*"(?:(?:\r\n)?[ \t])*)*:(?:(?:\r\n)?[ \t])*(?:(?:(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]| \\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt; @,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|" (?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t] )*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\ ".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(? :[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[ \]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*|(?:[^()&lt;&gt;@,;:\\".\[\] \000- \031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|( ?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)*\&lt;(?:(?:\r\n)?[ \t])*(?:@(?:[^()&lt;&gt;@,; :\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([ ^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\" .\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\ ]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\ [\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\ r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\] |\\.)*\](?:(?:\r\n)?[ \t])*))*)*:(?:(?:\r\n)?[ \t])*)?(?:[^()&lt;&gt;@,;:\\".\[\] \0 00-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\ .|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@, ;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|"(? :[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])* (?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\". \[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[ ^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\] ]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*\&gt;(?:(?:\r\n)?[ \t])*)(?:,\s*( ?:(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\ ".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:( ?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[ \["()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t ])*))*@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t ])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(? :\.(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+| \Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*|(?: [^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\ ]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)*\&lt;(?:(?:\r\n) ?[ \t])*(?:@(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\[" ()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n) ?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt; @,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@, ;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t] )*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\ ".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*)*:(?:(?:\r\n)?[ \t])*)? (?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()&lt;&gt;@,;:\\". \[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?: \r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\[ "()&lt;&gt;@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t]) *))*@(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t]) +|\Z|(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\ .(?:(?:\r\n)?[ \t])*(?:[^()&lt;&gt;@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z |(?=[\["()&lt;&gt;@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*\&gt;(?:( ?:\r\n)?[ \t])*))*)?;\s*) 
+
+---
+
+# Why you shouldn't use them
+
+We make many, many assumptions about language and text data. 
+
+* [Falsehoods programmers believe about names](https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/)
+* [Falsehoods programmers believe about addresses](https://www.mjt.me.uk/posts/falsehoods-programmers-believe-about-addresses/)
+* [Falsehoods programmers believe about time](https://infiniteundo.com/post/25326999628/falsehoods-programmers-believe-about-time)
+* [More falsehoods you likely believe in](https://github.com/kdeldycke/awesome-falsehood)
+
+
+---
+
+# Regexercises
+
+Write a regex that will match...
+
+* **Challenge 1**: Words that start with a consonant and end with a vowel
+* **Challenge 2**: Words in ALL CAPS
+* **Challenge 3**: British mobile phone numbers
+* **Challenge 4**: Usernames at least 8 characters long, using only letters and numbers
+
+.center[![](https://img.buzzfeed.com/buzzfeed-static/static/2015-01/16/7/enhanced/webdr06/anigif_enhanced-661-1421411482-2.gif)]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

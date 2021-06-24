@@ -1,0 +1,299 @@
+---
+title: 'Becoming a regexpert'
+author: "Martine Wauben"
+institute: "DHSC"
+date: "2020-03-04 (updated: `r Sys.Date()`)"
+css: my-theme.css
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include = FALSE}
+library(knitr)
+library(tufte)
+```
+
+
+class: inverse
+
+# Session overview
+
+* What are regular expressions?
+* Why should you use them?
+* The basics
+* R and regex
+* Why you shouldn't use them
+* Regexercises
+
+---
+
+# Regular expressions
+
+Also known as *regex* or *regexp*: they are a way to **describe patterns in strings of text**.
+
+They have numerous, enormously powerful applications, both in analysis and in data collection. 
+
+.center[![](https://miro.medium.com/max/1307/1*crvBQeo8YijDR4hQI6oUow.gif)]
+
+---
+
+# Why should you use them?
+
+**Finding patterns in data**
+
+For example, filtering data to relevant cases, or helping find connections in data beyond literal, exact matches. 
+
+One example: London ONS Local Authority District codes start with 'E09'. Using regex, we can make a 'London' variable in a single line: 
+
+--
+```{r local authority prep, include = FALSE}
+local_authorities <- data.frame(district_codes = c('E06000005',
+                                                   'E09000047',
+                                                   'E09000001',
+                                                   'E06000002',
+                                                   'E06000057'))
+```
+
+```{r local authority regex}
+local_authorities$London <- grepl('^E09', # Means: 'starts with E09'
+                                  local_authorities$district_codes)
+```
+
+
+```{r local authority codes, echo = FALSE}
+knitr::kable(local_authorities, format='html')
+```
+
+---
+
+# Why should you use them?
+
+.pull-left[
+
+
+* **Guarding against incorrect data entry**: avoid collecting incorrectly formatted data, or provide helpful error messages if you receive incorrectly formatted input. 
+]
+
+--
+
+.pull-right[
+![](https://i.pinimg.com/originals/91/85/f2/9185f2b02a4db2fd95b79b2d807a87ab.jpg)
+]
+
+---
+
+# The basics
+
+**Matching exact strings**
+
+```{r, eval = FALSE}
+grepl('apple', x)
+```
+
+<img src="https://lh3.googleusercontent.com/proxy/1KAEVCzN6Qw_UtWZzGcmvwxcrVMvrQVai_3WPGNogWONWKXaZORK73w8A8gWD_gtL9zenD7MWKSKRR5RSw3DuP-GK_Vf87M" height="20px" width="20px" /> apple
+
+<img src="https://lh3.googleusercontent.com/proxy/1KAEVCzN6Qw_UtWZzGcmvwxcrVMvrQVai_3WPGNogWONWKXaZORK73w8A8gWD_gtL9zenD7MWKSKRR5RSw3DuP-GK_Vf87M" height="20px" width="20px" /> pineapple
+
+<img src="https://lh3.googleusercontent.com/proxy/7tVkJ3zo2NDdsk7mV_Axc4zhU-9rl3a9QiziZw0VCSWgIcmjugP0k3X4txYmcy0uWk_ydxBtsaxSU_EPhipv45vqtgkiQBQFjegzZ3ZPx2Csg0wwEtm-HQ" height = "20px" width = "20px" /> lemon
+
+<img src="https://lh3.googleusercontent.com/proxy/7tVkJ3zo2NDdsk7mV_Axc4zhU-9rl3a9QiziZw0VCSWgIcmjugP0k3X4txYmcy0uWk_ydxBtsaxSU_EPhipv45vqtgkiQBQFjegzZ3ZPx2Csg0wwEtm-HQ" height = "20px" width = "20px" /> Apple
+
+
+---
+# The basics
+
+**Matching magic characters**
+
+| Magic character | Meaning | Example matches |
+| ---- | ---- | ---- | 
+| . | Matches any character | '.a' matches 'pineapple', not 'apple' |
+| \d | Matches any digit | matches '4', not 'four' |
+| \s | Matches any whitespace | matches 'pine apple', not 'pineapple |
+| [abc] | Matches a, b, or c | matches 'apple', not 'lemon |
+| [^abc] | Matches anything except a, b, or c | matches 'lemon', not 'apple' |
+| [a-e] | Character in range a-e | matches 'apple' AND 'lemon' |
+| [a-z] | Any lowercase character | matches 'four', not '4' |
+| [a-zA-Z] | Any lower or uppercase character | matches 'apple' AND 'Apple' |
+
+---
+
+# The basics
+
+**Anchors**
+
+| Magic character | Meaning | Example matches |
+| ---- | ---- | ---- | 
+| ^ | Start of string | '[^a]' matches 'apple', not 'pineapple' |
+| $ | End of string | '[a$]' matches 'banana', not 'apple' |
+| <img src='https://static.thenounproject.com/png/109106-200.png' height = 20px width = 20px />b | Word boundary | '<img src='https://static.thenounproject.com/png/109106-200.png' height = 20px width = 20px />bapple' matches 'apple', not 'pineapple' |
+
+
+---
+
+# The basics
+
+
+**Repetition**
+
+
+| Magic character | Meaning |
+| ---- | ---- | 
+| ? | 0 or 1 |
+| + | 1 or more |
+| * | 0 or more |
+| {n} | Exactly n times |
+| {n,} | n or more |
+| {,m} | m at most | 
+| {n,m} | Between n and m times |
+
+
+---
+
+class: inverse 
+
+# Regexample
+
+With these tools, you can start doing powerful things. What does this match?
+
+.center[
+### ^[A-Z][a-z]*$
+]
+
+--
+
+* **^** - start of the string
+* **[A-Z]** - capital letter
+* **[a-z]** - any lowercase letter
+* \* - one or more times
+* **$** - end of the string
+
+--
+
+ie.: **A single word that starts with a capital letter but is otherwise lowercase**
+
+---
+
+# The weird bits
+
+
+Some idiosyncracies are not so obvious:
+
+* Matches never overlap. *'Banana' matches 'ana' ONCE, not twice.*
+* You can use '|' to match one of multiple patterns. *'(abc)|(def)' will match either 'abc' or 'def'.*
+* You can use parentheses like in mathematical expressions. *'T(i|o)m' will match either 'Tim' or 'Tom'.*
+
+.center[![](https://i.giphy.com/Qe5oD5aXjEbKw.gif)]
+
+---
+
+# Escaping the magic
+
+These magic characters are helpful, but what if you want to match the character?
+
+> Basic regex: '\\.' matches a literal .
+
+--
+
+However, backslashes have special meaning in R. This means you have to escape both the escape symbol AND the special character.
+
+> R regex: '\\\\.' matches a literal .
+
+--
+
+It can get pretty intense... What does this match?
+
+> '\\\\\\\\'
+
+--
+
+.center[![](https://imgs.xkcd.com/comics/backslashes.png)]
+
+---
+
+
+# There is a cheat sheet!
+
+https://rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
+
+
+
+
+.center[
+![](https://media1.giphy.com/media/l4FGAREbOSRLKMiNq/giphy.gif)
+]
+
+---
+
+# Useful R functions
+
+Show you how a character vector and a regular expression match
+```{r, eval = FALSE}
+stringr::str_view(string, pattern)
+```
+Extract only the parts of the string that match the regex
+```{r, eval = FALSE}
+stringr::str_extract(string, pattern)
+```
+Return the index position of matches
+```{r, eval = FALSE}
+stringr::str_detect(string, pattern) //// grep(pattern, string)
+```
+Returns a logical vector (so you can count the number of matches using sum())
+```{r, eval = FALSE}
+stringr::str_which(string, pattern)  //// grepl(pattern, string)
+```
+Replace matches with another (defined) string
+```{r, eval = FALSE}
+stringr::str_replace(string, pattern) //// gsub(pattern, string)
+```
+
+
+
+---
+
+# Why you shouldn't use them
+
+
+
+> ## Some people, when confronted with a problem, think “I know, I’ll use regular expressions.” Now they have two problems.
+>                  - Jamie Zawinski
+
+---
+
+# Why you shouldn't use them
+
+It can get wildly out of hand. This is a regex to check the validity of e-mail addresses, from http://www.ex-parrot.com/~pdw/Mail-RFC822-Address.html
+
+> (?:(?:\r\n)?[ \t])*(?:(?:(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t] )+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?: \r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:( ?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\0 31]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\ ](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+ (?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?: (?:\r\n)?[ \t])*))*|(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z |(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n) ?[ \t])*)*\<(?:(?:\r\n)?[ \t])*(?:@(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\ r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n) ?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t] )*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])* )(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t] )+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*) *:(?:(?:\r\n)?[ \t])*)?(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+ |\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r \n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?: \r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t ]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031 ]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\]( ?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(? :(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(? :\r\n)?[ \t])*))*\>(?:(?:\r\n)?[ \t])*)|(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(? :(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)? [ \t]))*"(?:(?:\r\n)?[ \t])*)*:(?:(?:\r\n)?[ \t])*(?:(?:(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]| \\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<> @,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|" (?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t] )*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\ ".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(? :[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[ \]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*|(?:[^()<>@,;:\\".\[\] \000- \031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|( ?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)*\<(?:(?:\r\n)?[ \t])*(?:@(?:[^()<>@,; :\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([ ^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\" .\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\ ]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\ [\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\ r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\] |\\.)*\](?:(?:\r\n)?[ \t])*))*)*:(?:(?:\r\n)?[ \t])*)?(?:[^()<>@,;:\\".\[\] \0 00-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\ .|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[^()<>@, ;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|"(? :[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*))*@(?:(?:\r\n)?[ \t])* (?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\". \[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t])*(?:[ ^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\] ]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*\>(?:(?:\r\n)?[ \t])*)(?:,\s*( ?:(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\ ".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:( ?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[ \["()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t ])*))*@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t ])+|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(? :\.(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+| \Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*|(?: [^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\".\[\ ]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)*\<(?:(?:\r\n) ?[ \t])*(?:@(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\[" ()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n) ?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<> @,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*(?:,@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@, ;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\.(?:(?:\r\n)?[ \t] )*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\ ".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*)*:(?:(?:\r\n)?[ \t])*)? (?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\["()<>@,;:\\". \[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t])*)(?:\.(?:(?: \r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z|(?=[\[ "()<>@,;:\\".\[\]]))|"(?:[^\"\r\\]|\\.|(?:(?:\r\n)?[ \t]))*"(?:(?:\r\n)?[ \t]) *))*@(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t]) +|\Z|(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*)(?:\ .(?:(?:\r\n)?[ \t])*(?:[^()<>@,;:\\".\[\] \000-\031]+(?:(?:(?:\r\n)?[ \t])+|\Z |(?=[\["()<>@,;:\\".\[\]]))|\[([^\[\]\r\\]|\\.)*\](?:(?:\r\n)?[ \t])*))*\>(?:( ?:\r\n)?[ \t])*))*)?;\s*) 
+
+---
+
+# Why you shouldn't use them
+
+We make many, many assumptions about language and text data. 
+
+* [Falsehoods programmers believe about names](https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/)
+* [Falsehoods programmers believe about addresses](https://www.mjt.me.uk/posts/falsehoods-programmers-believe-about-addresses/)
+* [Falsehoods programmers believe about time](https://infiniteundo.com/post/25326999628/falsehoods-programmers-believe-about-time)
+* [More falsehoods you likely believe in](https://github.com/kdeldycke/awesome-falsehood)
+
+
+---
+
+# Regexercises
+
+Write a regex that will match...
+
+* **Challenge 1**: Words that start with a consonant and end with a vowel
+* **Challenge 2**: Words in ALL CAPS
+* **Challenge 3**: British mobile phone numbers
+* **Challenge 4**: Usernames at least 8 characters long, using only letters and numbers
+
+.center[![](https://img.buzzfeed.com/buzzfeed-static/static/2015-01/16/7/enhanced/webdr06/anigif_enhanced-661-1421411482-2.gif)]
+
+
