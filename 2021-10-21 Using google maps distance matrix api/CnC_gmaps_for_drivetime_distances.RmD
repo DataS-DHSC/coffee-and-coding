@@ -1,0 +1,223 @@
+---
+output:
+  govdown::govdown_document:
+    font: "sans-serif" # (default) or "new-transport"
+    favicon: "none" # or "none" (default) or "govuk" see ?govdown_document
+    logo: FALSE # or false (default)
+    logo_url: "https://ukgovdatascience.github.io/govdown/"
+    logo_text: "DHSC C&C"
+    page_title: "page_title"
+    title: "Using GoogleMaps API to get drive-time distances"
+    author: "Lisa Laeber"
+    date: "July 2021"
+    phase: alpha
+    feedback_url: "https://github.com/ukgovdatascience/govdown/issues"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Getting started with Google APIs
+
+Before using any of Google's APIs you'll need to create an API key. 
+You will need to provide credit card details to obtain an API key. 
+The 'free' plan for the distance matrix api allows up to 2,500 requests within a 
+24h window and up to $200 worth of requests per month. 
+To find out more about this, check out <https://developers.google.com/maps/documentation/distance-matrix/get-api-key>. 
+
+## Sample use case
+
+For this C&C sessions, we'll try to find the *n* closest care homes and the drive time to get there.
+
+### 1. Set-up: Packages, API key, data, function definitions
+```{r}
+# 1. packages ----------------------------------------------------------------
+pacman::p_load(dplyr, sf, mapsapi, httr, leaflet)
+
+# 2. Read API key from my googleCloud platform project 'DHSC-geo-project-Apr21'
+source('R/define_google_api_key.R')
+
+# 3. Read in data about ~15k UK care homes of interest
+care_homes <- readxl::read_excel("data/carehome Location Data & project overview.xlsx",
+                                 sheet = "input_carehomes") %>% 
+  # remove 3 care homes without coordinates
+  filter(!(is.na(locationlong)|is.na(locationlat)))
+```
+
+Geo data is usually provided in form of coordinates - typically longitude and latitude, but if your data does come in a different format (e.g. a post code) it's best to transform geo data into coordinates before you get started.
+Let's define a function to transform a postcode into geo coordinates.
+
+Using the free post *postcodes.io* API, we can transform a postcode into easting/northings or long/lat and obtain a few extra bits of administrative information (see https://postcodes.io/).
+
+NOTE: this could be done through gmaps api's mp_geocode function, too, but let's save those requests for what we really need to have them for.
+(If of interest see, the gmaps api way: https://developers.google.com/maps/documentation/geocoding/overview)
+
+```{r}
+# Define function
+postcode_lookup <- function(postcode) {
+  infos_about_postcode <- httr::GET(paste0("https://api.postcodes.io/postcodes/", postcode))
+  httr::warn_for_status(infos_about_postcode)
+  httr::content(infos_about_postcode)
+}
+
+```
+
+### 2. Specifiying our 'user' parameters
+
+Now, let's define a starting point, e.g. a random address, and say how many care homes to display
+```{r}
+# DHSC address: Quarry House, Quarry Hill, Leeds, West Yorkshire Ls2 7Ue, Leeds LS2 7UE
+my_location_name <- "DHSC office in Leeds: Quarry House, Quarry Hill, Leeds LS2 7UE"
+my_postcode <- "LS2 7UE"
+
+top_n <- 20
+
+```
+
+### 3. Transforming data into the right format
+
+Extract coordinate information and transform into geo object:
+```{r}
+# returns a list of information associated with post code
+infos_about_my_postcode <- postcode_lookup(my_postcode)
+
+my_address_df <- data.frame(my_long = infos_about_my_postcode$result$longitude, 
+                         my_lat = infos_about_my_postcode$result$latitude)
+
+my_address_sf <- my_address_df %>% 
+  sf::st_as_sf(coords = c("my_long", "my_lat"), crs = 4326) 
+
+```
+
+
+### 4. Calculations
+We do the distance calculations in two steps to reduce the number of requests to the API:
+
+#### 4.1. Pre-calculate straight-line distances
+Pre-calculate straight-line distance from our address to all ~15k care homes and keep top n care homes.
+```{r}
+# use sf package to first pre-calculate approximate distance. (was geosphere pkg)
+carehomes_distances <- care_homes %>% 
+  sf::st_as_sf(coords = c("locationlong", "locationlat"), crs = 4326) %>% 
+  sf::st_distance(my_address_sf)
+  
+# returns a distance matrix
+head(carehomes_distances)
+```
+
+```{r}
+# Ensure that query sticks to google API limit of max 25 destination per start point
+max_elements <- 25 
+max_n <- min(top_n, max_elements)
+
+# add distances to df and keep only top n closest (by straight-line dist) care homes
+top_n_carehomes_df <- care_homes %>% 
+  select(CQClocationid, locationname, locationlat, locationlong) %>% 
+  cbind(Distance = carehomes_distances) %>% 
+  arrange(Distance) %>% # sort by distance
+  head(max_n)
+
+head(top_n_carehomes_df)
+```
+
+#### 4.2 Obtain drivetime distances and durations through Google Maps API
+
+Prepare data as input for querying the Google Maps API.
+```{r}
+# create long lat dataframe of closest n carehomes
+filtered_carehome_locations <- top_n_carehomes_df %>%
+    select(locationlong, locationlat) %>% 
+    as.matrix()
+  
+  colnames(filtered_carehome_locations) <- c('lon', 'lat') # setting this consistent with mapsapi package documentation
+```
+
+Call Google distance matrix API
+```{r}
+# Get distance matrix from the Google Maps Distance Matrix API  
+# will have <status>REQUEST_DENIED</status> if API key is not registered
+doc <- mapsapi::mp_matrix(
+  origins = filtered_carehome_locations,
+  destinations = my_address_sf,
+  mode = "driving",
+  key = key,
+  quiet = TRUE)
+
+# Check status of API request.
+if((xml2::xml_find_all(doc, xpath = "status") %>% xml2::xml_text()) !="OK"){
+  message(xml2::xml_find_all(doc, xpath = "error_message") %>% 
+                       xml2::xml_text())
+}
+   
+
+```
+
+Extract Distance matrix & Duration matrix from API return and combine them:
+
+Distance matrix
+```{r}
+# Extract distances from a Google Maps Distance Matrix API response
+# (wrapped into trycatch to highlight potential API key issue)
+m_dist <- mapsapi::mp_get_matrix(doc, value = "distance_m")
+  
+colnames(m_dist) <- "driving_distance"
+```
+
+Duration matrix
+```{r}
+# Extract drive time duration from a Google Maps Distance Matrix API response
+m_dur <- mapsapi::mp_get_matrix(doc, value = "duration_text")
+colnames(m_dur) <- "driving_duration"
+```
+
+Combine outputs into df and convert meters into miles
+```{r}
+# create final table of closest care homes
+tbl_closest_carehome <- m_dist %>% 
+  tibble::as_tibble() %>% 
+  cbind(driving_duration = m_dur) %>% 
+  mutate(driving_distance_mi = round(driving_distance/1000/1.60934,1)) %>%  # derive distance in mi
+  select(-driving_distance) %>% 
+  arrange(driving_distance_mi)
+
+knitr::kable(head(tbl_closest_carehome))
+
+```
+
+
+
+### 5. Mapping our results
+
+Now that all data is in one place, we can go on and do further analysis or do some mapping...
+```{r}
+
+# set icon colour for my_location_name
+icons <- awesomeIcons(
+  icon = 'ios-close',
+  iconColor = 'black',
+  library = 'ion',
+  markerColor = 'red'
+)
+
+# create output leaflet map
+map <- leaflet(top_n_carehomes_df) %>% 
+  addTiles() %>% 
+  setView(lng = my_address_df$my_long, lat = my_address_df$my_lat, zoom = 12) %>% 
+  addAwesomeMarkers(lng = my_address_df$my_long, 
+                    lat = my_address_df$my_lat, 
+                    icon = icons, 
+                    popup = my_location_name,
+                    label = my_postcode
+  ) %>% 
+  addMarkers(lng = ~locationlong,
+             lat = ~locationlat ,
+             popup = ~as.character(locationname),
+             label = ~as.character(CQClocationid)
+  )
+
+map
+```
+

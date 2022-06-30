@@ -1,0 +1,11 @@
+﻿name,animal_type,age,vaccination,Steps Per Day,weight_kg
+Catalie Portman,cat,3,TRUE,8105,3
+Pico de Gato,Cat,5,FALSE,N/A,4
+Chewbarka,dog,1,FALSE,611,6
+Sir Isaac Mewton,cat,7,TRUE,8161,3
+K9,dog,11,TRUE,7081,27
+Arf Vader,dog,6,FALSE,NaN,16
+Spiderpig,pig,4,TRUE,5995,32
+Andy Warhowl,dog,12,TRUE,6920,27
+Voldetort,tortoise,90,TRUE,.,113kg
+Repecka,chicken,One,TRUE,812,2

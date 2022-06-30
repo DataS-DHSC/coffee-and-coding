@@ -1,0 +1,62 @@
+Notebook 1:
+shopping_list = ['banana', 'apple', 'cheese', 'ham', 'eggs']
+items_bought = [5, 1, 4, 6, 3]
+shopping_list[1]
+shopping_list[1:]
+shopping_list_series = pd.Series(shopping_list)
+items_series = pd.Series(items_bought)
+dataframe = pd.DataFrame({'item':shopping_list_series, 'number bought':items_series})
+
+
+Notebook 2:
+school = pd.read_csv("data/schools_data.csv")
+school.tail()
+
+animals.to_excel("animals.xlsx")
+
+titanic_female = titanic[titanic['sex'] ==  "female"]
+titanic_female.head()
+
+titanic_over40 = titanic[titanic['age'] > 40]
+titanic_over40.head()
+
+titanic_fare_under30 = titanic[titanic['fare'] <= 30.50]
+titanic_fare_under30.head()
+
+cost_u400_croydon = animals[(animals['IncidentNominalCost(£)'] < 400) & (animals['Borough'] == "Croydon")]
+cost_u400_croydon.head()
+
+river_pumphours = animals[(animals['PropertyType'] == "River/canal") | (animals['PumpHoursTotal'] > 8)]
+river_pumphours
+
+print(titanic.shape) # returns rows, columns
+print(len(titanic)) # retuns rows
+print(len(titanic.columns)) # returns columns
+
+titanic.dtypes
+
+titanic.columns
+
+titanic_sorted = titanic.sort_values(by="age", ascending=False)
+titanic_sorted.head(20)
+
+titanic_sorted = titanic.sort_values(by=["age", "sex"])
+titanic_sorted.head(20)
+
+titanic_select = titanic[["name","sex","age", "survived" ]]
+titanic_select.head()
+
+marvel_outer = marvel_left.merge(right=marvel_right, 
+                                 how="outer",
+                                 on="name", 
+                                 indicator=True)
+marvel_outer.head()
+
+
+
+Notebook 3:
+titanic["age"].max()
+
+titanic["age"].std()
+
+titanic["pclass"].value_counts()
