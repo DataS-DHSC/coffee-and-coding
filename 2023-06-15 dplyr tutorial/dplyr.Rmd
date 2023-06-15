@@ -1,0 +1,491 @@
+---
+  title: "Introduction to dplyr"
+output: rmarkdown::html_vignette
+description: >
+  Start here if this is your first time using dplyr. You'll learn the basic   
+  philosophy, the most important data manipulation verbs, and the pipe, `%>%`, 
+  which allows you to combine multiple verbs together to solve real problems.
+vignette: >
+  %\VignetteIndexEntry{Introduction to dplyr}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r, echo = FALSE, message = FALSE}
+knitr::opts_chunk$set(collapse = T, comment = "#>")
+options(tibble.print_min = 4L, tibble.print_max = 4L)
+library(dplyr)
+
+set.seed(1014)
+```
+
+Tidyverse is a selection of packages that primarily deal with data handling and manipulation. dplyr is one of those packages;
+providing functions for common manipulation tasks and often uses more efficient backends than base R.
+
+Some may be familiar with plyr, dplyr effectively replaces this with lots of same function names used in both. Like I had to,
+if you're still using plyr - it's time to transition.
+
+
+This document introduces you to dplyr's basic set of tools, and shows you how to apply them to data frames. dplyr also supports databases via the dbplyr package. Later we'll also cover dtplyr, a merge of dplyr and data.table.
+
+## Data: starwars
+
+To explore the basic data manipulation verbs of dplyr, we'll use the dataset `starwars`. This dataset contains `r nrow(starwars)` characters.
+
+```{r}
+dim(starwars)
+starwars
+```
+
+Note that `starwars` is a tibble, a modern reimagining of the data frame. Tibbles come from the tidyverse and we have other informations on this on the github.
+
+## Single table verbs
+
+dplyr aims to provide a function for each basic verb of data manipulation. These verbs can be organised into three categories based on the component of the dataset that they work with:
+
+* Rows:
+  * `filter()` chooses rows based on column values.
+  * `slice()` chooses rows based on location.
+  * `arrange()` changes the order of the rows.
+  
+* Columns:
+  * `select()` changes whether or not a column is included. 
+  * `rename()` changes the name of columns.
+  * `mutate()` changes the values of columns and creates new columns.
+  * `relocate()` changes the order of the columns.
+
+* Groups of rows:
+  * `summarise()` collapses a group into a single row.
+  
+### The pipe
+
+All of the dplyr functions take a data frame (or tibble) as the first argument. Rather than forcing the user to either save intermediate objects or nest functions, dplyr provides the `%>%` operator from magrittr. `x %>% f(y)` turns into `f(x, y)` so the result from one step is then "piped" into the next step. You can use the pipe to rewrite multiple operations that you can read left-to-right, top-to-bottom (reading the pipe operator as "then"). 
+
+### Filter rows with `filter()`
+
+`filter()` allows you to select a subset of rows in a data frame. Like all single verbs, the first argument is the tibble (or data frame). The second and subsequent arguments refer to variables within that data frame, selecting rows where the expression is `TRUE`.
+
+For example, we can select all character with light skin color and brown eyes with:
+
+```{r}
+starwars %>% filter(skin_color == "light", eye_color == "brown")
+```   
+
+This is roughly equivalent to this base R code:
+
+```{r, eval = FALSE}
+starwars[starwars$skin_color == "light" & starwars$eye_color == "brown", ]
+
+```
+
+### Arrange rows with `arrange()`
+
+`arrange()` works similarly to `filter()` except that instead of filtering or selecting rows, it reorders them. It takes a data frame, and a set of column names (or more complicated expressions) to order by. If you provide more than one column name, each additional column will be used to break ties in the values of preceding columns:
+
+```{r}
+starwars %>% arrange(height, mass)
+```
+
+Use `desc()` to order a column in descending order:
+
+```{r}
+starwars %>% arrange(desc(height))
+```
+
+###  Choose rows using their position with `slice()`
+
+`slice()` lets you index rows by their (integer) locations. It allows you to select, remove, and duplicate rows. 
+
+We can get characters from row numbers 5 through 10.
+```{r}
+starwars %>% slice(5:10)
+```
+
+It is accompanied by a number of helpers for common use cases:
+
+* `slice_head()` and `slice_tail()` select the first or last rows.
+
+```{r}
+starwars %>% slice_head(n = 3)
+
+```
+
+* `slice_sample()` randomly selects rows. Use the option prop to choose a certain proportion of the cases.
+
+```{r}
+starwars %>% slice_sample(n = 5)
+starwars %>% slice_sample(prop = 0.1)
+
+```
+Use `replace = TRUE` to perform a bootstrap sample. If needed, you can weight the sample with the `weight` argument.
+
+* `slice_min()` and `slice_max()` select rows with highest or lowest values of a variable. Note that we first must choose  only the values which are not NA.
+
+```{r}
+starwars %>%
+  filter(!is.na(height)) %>%
+  slice_max(height, n = 3)
+```
+
+### Select columns with `select()`
+
+Often you work with large datasets with many columns but only a few are actually of interest to you. `select()` allows you to rapidly zoom in on a useful subset using operations that usually only work on numeric variable positions:
+
+```{r}
+# Select columns by name
+starwars %>% select(hair_color, skin_color, eye_color)
+# Select all columns between hair_color and eye_color (inclusive)
+starwars %>% select(hair_color:eye_color)
+# Select all columns except those from hair_color to eye_color (inclusive)
+starwars %>% select(!(hair_color:eye_color))
+# Select all columns ending with color
+starwars %>% select(ends_with("color"))
+```
+
+There are a number of helper functions you can use within `select()`, like `starts_with()`, `ends_with()`, `matches()` and `contains()`. These let you quickly match larger blocks of variables that meet some criterion. See `?select` for more details.
+
+You can rename variables with `select()` by using named arguments:
+
+```{r}
+starwars %>% select(home_world = homeworld)
+```
+
+But because `select()` drops all the variables not explicitly mentioned, it's not that useful. Instead, use `rename()`:
+  
+  ```{r}
+starwars %>% rename(home_world = homeworld)
+```
+
+### Add new columns with `mutate()`
+
+Besides selecting sets of existing columns, it's often useful to add new columns that are functions of existing columns. This is the job of `mutate()`:
+
+```{r}
+
+starwars %>% mutate(height_m = height / 100)
+```
+
+We can't see the height in meters we just calculated, but we can fix that using a select command.
+
+```{r}
+starwars %>%
+  mutate(height_m = height / 100) %>%
+  select(height_m, height, everything())
+```
+
+`dplyr::mutate()` is similar to the base `transform()`, but allows you to refer to columns that you've just created:
+
+```{r}
+starwars %>%
+  mutate(
+    height_m = height / 100,
+    BMI = mass / (height_m^2)
+  ) %>%
+  select(BMI, everything())
+```
+
+If you only want to keep the new variables, use `.keep = "none"`:
+
+```{r}
+starwars %>%
+  mutate(
+    height_m = height / 100,
+    BMI = mass / (height_m^2),
+    .keep = "none"
+  )
+```
+
+### Change column order with `relocate()`
+
+Use a similar syntax as `select()` to move blocks of columns at once
+
+```{r}
+starwars %>% relocate(sex:homeworld, .before = height)
+```
+
+
+### Summarise values with `summarise()`
+
+The last verb is `summarise()`. It collapses a data frame to a single row.
+
+```{r}
+starwars %>% summarise(height = mean(height, na.rm = TRUE))
+```
+
+It's not that useful until we learn the `group_by()` verb below.
+
+
+## Combining functions with `%>%` 
+
+The dplyr API is functional in the sense that function calls don't have side-effects. You must always save their results. This doesn't lead to particularly elegant code, especially if you want to do many operations at once. You either have to do it step-by-step:
+  
+  ```{r, eval = FALSE}
+a1 <- group_by(starwars, species, sex)
+a2 <- select(a1, height, mass)
+a3 <- summarise(a2,
+                height = mean(height, na.rm = TRUE),
+                mass = mean(mass, na.rm = TRUE)
+)
+```
+
+Or if you don't want to name the intermediate results, you need to wrap the function calls inside each other:
+
+```{r}
+summarise(
+  select(
+    group_by(starwars, species, sex),
+    height, mass
+  ),
+  height = mean(height, na.rm = TRUE),
+  mass = mean(mass, na.rm = TRUE)
+)
+```
+
+This is difficult to read because the order of the operations is from inside to out. Thus, the arguments are a long way away from the function. To get around this problem, dplyr provides the `%>%` operator from magrittr. `x %>% f(y)` turns into `f(x, y)` so you can use it to rewrite multiple operations that you can read left-to-right, top-to-bottom (reading the pipe operator as "then"):
+
+
+Here group_by is providing us with 'secret breakdowns'. All evaluated in the data frame and outputted to a single dataframe, it is performing these functions specifcally to each combination fo species and sex.
+
+
+```{r, eval = FALSE}
+starwars %>%
+  group_by(species, sex) %>%
+  select(height, mass) %>%
+  summarise(
+    height = mean(height, na.rm = TRUE),
+    mass = mean(mass, na.rm = TRUE)
+  )
+```
+
+### Selecting operations
+
+Selecting operations expect column names and positions. Hence, when
+you call `select()` with bare variable names, they actually represent
+their own positions in the tibble. The following calls are completely
+equivalent from dplyr's point of view:
+
+```{r}
+# `name` represents the integer 1
+select(starwars, name)
+select(starwars, 1)
+```
+
+By the same token, this means that you cannot refer to variables from
+the surrounding context if they have the same name as one of the
+columns. In the following example, `height` still represents 2, not 5:
+
+```{r}
+height <- 5
+select(starwars, height)
+
+```
+
+One useful subtlety is that this only applies to bare names and to
+selecting calls like `c(height, mass)` or `height:mass`. In all other
+cases, the columns of the data frame are not put in scope. This allows
+you to refer to contextual variables in selection helpers:
+
+```{r}
+name <- "color"
+select(starwars, ends_with(name))
+```
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(dbplyr)
+library(dtplyr)
+
+```
+
+
+## Additional `dplyr` backends
+
+There are two different backends that allow you to write *mostly* unchanged `dplyr` code but translate this code so that it is run by a different code engine "under the hood":
+
+[`dtplyr`](https://dtplyr.tidyverse.org/index.html) | Allow you to write dplyr code that is automatically translated to the equivalent, but usually much faster, [`data.table`](https://rdatatable.gitlab.io/data.table/) code. 
+[`dbplyr`](https://dbplyr.tidyverse.org/index.html) | Allows you to use remote database tables as if they are in-memory data frames by automatically converting dplyr code into SQL. This also has the advantage that queries are run remotely so can be faster. |
+
+These libraries are used in a similar way:
+
+1.  Create a "lazy" table
+
+2.  Perform your dplyr operations
+
+3.  Evaluate your "query" (either explicitly or automatically)
+
+### Example
+
+#### `dplyr`
+
+```{r, eval = FALSE}
+df_dplyr <- starwars %>%
+  group_by(species, sex) %>%
+  select(species, sex, height, mass) %>%
+  summarise(
+    height = mean(height, na.rm = TRUE),
+    mass = mean(mass, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(species, sex, height, mass)
+
+print(df_dplyr)
+```
+
+#### `dbplyr`
+
+##### 1. Create a "lazy" table
+
+```{r, eval = FALSE}
+# remove list columns as cannot be used in database
+starwars <- starwars %>% select(-c(films, vehicles, starships))
+
+# create copy of table in in-memory database
+con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+copy_to(con, starwars)
+
+# create lazy table
+tbl_starwars <- tbl(con, "starwars")
+
+print(tbl_starwars)
+```
+
+##### 2. Perform your dplyr operations
+
+```{r, eval = FALSE}
+# perform same operations as dplyr
+tbl_query <- tbl_starwars %>%
+  group_by(species, sex) %>%
+  select(species, sex, height, mass) %>%
+  summarise(
+    height = mean(height, na.rm = TRUE),
+    mass = mean(mass, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(species, sex, height, mass)
+
+print(tbl_query)
+```
+
+Notice that the table only shows the first 10 rows and doesn't know how many rows in total there are.
+
+```{r, eval = FALSE}
+tbl_query %>% show_query()
+```
+
+##### 3. Evaluate your "query"
+
+```{r, eval = FALSE}
+# retrieve data
+df_dbplyr <- tbl_query %>% collect()
+
+# check the same
+print(all.equal(df_dbplyr, df_dplyr))
+
+# examine data
+print(df_dbplyr)
+```
+
+The results are different because the data was sorted on the database server and not in R which deals with NA values differently. To check need to re-sort:
+
+```{r, eval = FALSE}
+# reorder using R logic and check
+df_dbplyr <- df_dbplyr %>%
+  arrange(species, sex, height, mass)
+
+print(all.equal(df_dbplyr, df_dplyr))
+```
+
+Not all `dplyr` verbs are supported:
+
+```{r, eval = FALSE}
+print(tbl_query %>% tail(3))
+```
+
+#### `dtplyr`
+
+The process with `dtplyr` is almost identical to `dbplyr`.
+
+##### 1. Create a "lazy" table
+
+```{r, eval = FALSE}
+# create lazy table
+dt_starwars <- lazy_dt(starwars)
+
+print(dt_starwars)
+```
+
+##### 2. Perform your dplyr operations
+
+```{r, eval = FALSE}
+# perform same operations as dplyr
+dt_query <- dt_starwars %>%
+  group_by(species, sex) %>%
+  select(species, sex, height, mass) %>%
+  summarise(
+    height = mean(height, na.rm = TRUE),
+    mass = mean(mass, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(species, sex, height, mass)
+
+print(dt_query)
+```
+
+Just like with `dbplyr` you can see the "query" being run on `data.table`:
+
+```{r, eval = FALSE}
+dt_query %>% show_query()
+
+
+
+```
+
+##### 3. Evaluate your "query"
+
+```{r, eval = FALSE}
+# retrieve data
+df_dtplyr <- dt_query %>% collect()
+
+# check the same
+print(all.equal(df_dtplyr, df_dplyr))
+```
+
+`dtplyr` does not have the same issue as `dbplyr` with sorting as it is run in R.
+
+The advantage of `dtplyr` is that it is usually quicker than `dplyr` due to the underlying implementation:
+
+```{r, eval = FALSE}
+bench::mark(
+  dt_starwars %>%
+    group_by(species, sex) %>%
+    select(species, sex, height, mass) %>%
+    summarise(
+      height = mean(height, na.rm = TRUE),
+      mass = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(species, sex, height, mass) %>%
+    collect() %>%
+    nrow(),
+  starwars %>%
+    group_by(species, sex) %>%
+    select(species, sex, height, mass) %>%
+    summarise(
+      height = mean(height, na.rm = TRUE),
+      mass = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(species, sex, height, mass) %>%
+    nrow(),
+  iterations = 100,
+  check = FALSE
+) %>%
+  mutate(
+    package = c("dtplyr", "dplyr")
+  ) %>%
+  select(package, min, median)
+```
