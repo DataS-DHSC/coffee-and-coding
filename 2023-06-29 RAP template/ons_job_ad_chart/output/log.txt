@@ -1,0 +1,6 @@
+INFO [2023-06-29 10:53:21] [Begin]
+INFO [2023-06-29 10:53:21] DOwnload data from ONS
+INFO [2023-06-29 10:53:23] Transforming data
+INFO [2023-06-29 10:53:23] Creating plot
+INFO [2023-06-29 10:53:24] Saving to file output/job_advert_chart.svg
+INFO [2023-06-29 10:53:26] [End]

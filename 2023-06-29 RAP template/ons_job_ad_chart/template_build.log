@@ -1,0 +1,71 @@
+
+── Provisioning DHSC template ──────────────────────────────────────────────────────────────────────────────
+✔ Setting active project to 'C:/Users/MKatz/OneDrive - Department of Health and Social Care/Documents/20230629 C&C RAP template/ons_job_ad_chart'
+
+── Creating file skeleton ──
+
+[1] "skeleton/_.gitignore"
+✔ Writing '.gitignore'
+[1] "skeleton/_.Rbuildignore"
+✔ Writing '.Rbuildignore'
+[1] "skeleton/_.Renviron"
+✔ Writing '.Renviron'
+[1] "skeleton/__pkgdown.yml"
+✔ Writing '_pkgdown.yml'
+[1] "skeleton/_README.Rmd"
+✔ Writing 'README.Rmd'
+✔ Creating 'input/'
+✔ Adding '^input$' to '.Rbuildignore'
+[1] "skeleton/input/_.gitignore"
+✔ Writing 'input/.gitignore'
+✔ Creating 'output/'
+✔ Adding '^output$' to '.Rbuildignore'
+[1] "skeleton/output/_.gitignore"
+✔ Writing 'output/.gitignore'
+✔ Creating 'R/'
+[1] "without_example/_main.R"
+✔ Writing 'main.R'
+[1] "without_example/input/_config.yml"
+✔ Writing 'input/config.yml'
+✔ Adding '^main\\.R$', '^README\\.Rmd$', '^template_build\\.log$' to '.Rbuildignore'
+✔ Writing 'CODE_OF_CONDUCT.md'
+✔ Adding '^CODE_OF_CONDUCT\\.md$' to '.Rbuildignore'
+✔ Writing 'R/ons.job.ad.chart-package.R'
+✔ Writing 'ons_job_ad_chart.Rproj'
+✔ Adding '^ons_job_ad_chart\\.Rproj$' to '.Rbuildignore'
+...done
+
+── Adding DESCRIPTION and LICENSE ──
+
+✔ Writing 'DESCRIPTION'
+Package: ons.job.ad.chart
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
+Authors@R (parsed):
+    * First Last <email@dhsc.gov.uk> [aut, cre]
+Description: What the package does (one paragraph).
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+✔ Writing 'LICENSE'
+✔ Writing 'LICENSE.md'
+✔ Adding '^LICENSE\\.md$' to '.Rbuildignore'
+...done
+
+── Setting up pkgdown for html documentation ──
+
+✔ Adding '^_pkgdown\\.yml$', '^docs$', '^pkgdown$' to '.Rbuildignore'
+✔ Adding 'docs' to '.gitignore'
+✔ Leaving '_pkgdown.yml' unchanged
+• Edit '_pkgdown.yml'
+...done
+
+── Configuring git ──
+
+✔ Initialising Git repo
+• Check Git config correct
+ℹ Name: Matthew Katz
+ℹ Email: matthew.katz@dhsc.gov.uk
+✔ Writing '.git/hooks/pre-commit'
+...done

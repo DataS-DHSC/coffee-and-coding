@@ -1,0 +1,5 @@
+Project name: ons_job_ad_chart
+Title: Create chart of job adverts 
+Description: Code downloads job advert data via ONS API then saves a chart of indexed values for 2022 for all industries and healthcare.
+
+DHSCcolours repo: DataS-DHSC/DHSCcolours

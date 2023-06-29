@@ -1,0 +1,94 @@
+---
+title: "using_rap_template"
+---
+
+## 2023-Jun-29 Coffee & Coding: RAP Template
+
+This practical session is going to focus on using the RAP template we designed at DHSC. This template provides boilerplate code for developing RAP projects that conform to many of the best practice guidelines set out in the "[duck book](https://best-practice-and-impact.github.io/qa-of-code-guidance/intro.html)". While this template was motivated by RAP, we would recommend using it for all larger analytical projects.
+
+Note package is still in development so any suggested improvements welcome!
+
+### Installing the package
+
+To install the `DHSCtools` package which contains the template, run the following (which will install the new `DHSCverse` wrapper package which contains `DHSCtools`):
+
+```{r}
+if (!requireNamespace("librarian")) install.packages("librarian")
+librarian::stock(DataS-DHSC/DHSCverse)
+```
+
+If you have not previously installed the template on your machine, you will need to restart your R session (either by restarting RStudio or using *Session* \> *Restart R*).
+
+### Creating a new project
+
+To use the DHSC project template go to *File \> New Project...* then select *New Directory* followed by *DHSC Project Template*. This will bring up the project configuration screen where, in addition to the usual *Directory name:* and *Create project as subdirectory of:* options, you will see four check boxes:
+
+1.  *Include how-to markdown?* - select to include a quarto document on how to use the template in your project (we will be mostly following this document in this session).
+
+2.  *Include example code?* - select to include some boilerplate example code demonstrating how to use the template and coding best practice.
+
+3.  *Add NEWS.md change log?* - select if you want to automatically create a `NEWS.md` file to use as a changelog (equivalent to running `usethis::use_news_md()`).
+
+4.  *Include unit testing framework (testthat)?* - select if you want to automatically create a unit testing framework for your project (equivalent to running `usethis::use_testthat()`).
+
+For simplicity, in this session we will deselect all the check boxes.
+
+## Initial configuration
+
+-   Complete the *Title*, *Authors\@R*, and *Description* fields in the `DESCRIPTION` file.
+-   Begin adding details to the `README.Rmd` file about the project and the analysis performed.
+-   Check that your git user.name and user.email are correctly set (see `template_build.log` for current values or run `usethis::git_sitrep()`).
+
+**Note:** The package name in the `DESCRIPTION` file may differ from that of the R project for package compatibility reasons (R package names must contain only (ASCII) letters, numbers and dot, have at least two characters and start with a letter and not end in a dot).
+
+## Porting existing code
+
+Use the below steps to transfer an existing script into the template:
+
+1.  Copy code to a script in `R` folder
+
+2.  Wrap code in a function and make any changes such as saving to the `output` folder and adding logging
+
+3.  Run *LINTR* \> *Lint current file* from the *Addins* menu (Note that column names in tidyverse statements will show as warnings - these can either be ignored or the names prefixed with`.data$`)
+
+4.  Add a function header by placing the cursor inside the function to be documented and then selecting *Code* \> *Insert Roxygen skeleton* from the main menu
+
+5.  Add all packages used by the script to the `librarian::stock` function in the `main.R` script to ensure that missing packages are installed
+
+6.  Add `source` to the `main.R` script and call the function that wraps your code
+
+7.  Check code runs by sourcing the `main.R` script
+
+8.  Create html documentation:
+
+    ```{r}
+    # make sure the README has been updated
+    rmarkdown::render("README.Rmd")
+
+    # update any documentation based on roxygen function headers
+    devtools::document()
+
+    # automatically generate web page
+    pkgdown::build_site(examples = FALSE)
+    ```
+
+9.  Commit code using the *Git* tab in the environments pane (top-left)
+
+10. (optional) Upload code to GitHub
+
+    ```{r}
+    usethis::use_github(
+      organisation = "DataS-DHSC",
+      visibility = "private"
+    )
+    ```
+
+While the above is for analysis contained in a single script, for multiple scripts these should all be stored in the `R` folder and adapted so that the scripts only contain functions. Dependencies between scripts can the be set using (assuming that the script being sourced is called `example.R`):
+
+```{r}
+# source example.R script
+example <- new.env(parent = baseenv()); source("./R/example.R", local = example)
+
+# call a function from the example.R script
+example$function_call()
+```
