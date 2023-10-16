@@ -1,0 +1,550 @@
+---
+title: 'Vectorisation, `purrr` and `furrr`'
+author:
+- name: "Stephen Ashton"
+  email: "stephen.ashton@dhsc.gov.uk"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+The following packages are required for the examples below. Feel free to install
+as required:
+
+```{r, eval=FALSE}
+install.packages("rlang")
+install.packages("dplyr")
+install.packages("purrr")
+install.packages("future")
+install.packages("furrr")
+```
+
+# Linear Operations
+
+When working with simple pieces of data and analysis in R, it is often fine to
+apply modifications in-line and sequentially.
+
+For example, we may wish to multiply two numbers together:
+
+```{r}
+prod <- 3 * 6
+
+prod
+```
+
+# Loops
+
+As we work using more complex code, we may wish to apply a modification to a
+larger amount of data - likely contained in vectors or lists.
+
+A simple way to do this would be to work with a `for`-loop. For example, if we
+wish to work out the square of a vector of numbers, we can do this as follows:
+
+```{r}
+# Specify input
+numbers <- 1:10
+
+numbers
+
+# Initial output
+squares <- c()
+
+# Run for loop
+for (i in seq_along(numbers)) {
+  squares[i] <- numbers[i] ^ 2
+}
+
+squares
+```
+
+However, an issue with such a process will be that the computation time will
+extend with the length of the input vector and complexity of the function
+applied. The above uses a small vector and simple function so is very quick, 
+but with a much longer loop or more complex function may result in a much slower
+result.
+
+# Vectorisation
+
+The easiest solution to fix this is to use **vectorisation**. This applies a
+function to all elements of a vector (or set of vectors) simultaneously, and is
+highly efficient within R.
+
+For example, we can do the same process as the previous example as a vectorised
+implementation:
+
+```{r}
+# Specify input
+numbers <- 1:10
+
+numbers
+
+# Apply vectorisation
+squares <- numbers ^ 2
+
+squares
+```
+
+We can also apply a calculation using two different vectors (of equal length),
+for example:
+
+```{r}
+# Specify inputs
+numbers <- 1:10
+powers <- seq(from = 2, to = 20, by = 2)
+
+numbers
+powers
+
+# Apply vectorisation
+big_nums <- numbers ^ powers
+
+big_nums
+```
+
+However, an issue with this is that the function being applied must either be
+an in-built vectorised function, or be constructed in such a way that it can be
+applied in this way. Additionally, the vector(s) must be **atomic** - that is
+that every item in the vector must be of the same length and type (e.g. they
+must all be numerics (as in the above) or strings).
+
+# Mapping with `purrr`
+
+An efficient way to apply the same function to a list/vector of values (or
+multiple lists/vectors) is to use
+the `purrr` package, notably the functions:
+
+*   `purrr::map`
+*   `purrr::map2`
+*   `purrr::pmap`
+
+With these we can deal with more complex scenarios and functions. For example,
+we may have a list containing vectors, and wish to calculate the mean of each
+entry:
+
+```{r}
+# Load library
+suppressWarnings(suppressPackageStartupMessages(library(purrr)))
+
+# Specify input
+val_list <- list(
+  c(1,2,3),
+  c(1,1,2,2,3,3,4,4),
+  c(2,3,4,4,6)
+)
+
+val_list
+
+# Apply map
+mean_list <- map(val_list, mean)
+
+mean_list
+```
+
+It should be noted that (by default) `purrr::map` will always return a list. If
+we want a specific type, we can use the `purrr::map_*` family of functions, or
+apply post-processing. For example, in the above example, if we want to return
+a numeric vector, we could do the following:
+
+```{r}
+# Apply map
+mean_list <- map_dbl(val_list, mean)
+
+mean_list
+```
+
+## How to use `purrr::map`
+
+Within `purrr::map`, we need to specify (at least) two values:
+
+*   `.x` - The list or vector
+*   `.f` - A function
+
+In the above example, we used an inbuilt function (`mean`) where the input was
+clear, however this is often not the case. In such a scenario, we should use an
+**anonymous function** to specify directly. For example:
+
+```{r}
+# Specify input
+val_list <- list(
+  c(1,2,3),
+  c(1,1,2,2,3,3,4,4),
+  c(2,3,4,4,6)
+)
+
+val_list
+
+# Apply map
+meansq_list <- map_dbl(
+  .x = val_list, 
+  .f = \(x) mean(x, na.rm = TRUE) ^ 2
+)
+
+meansq_list
+```
+
+You can also pass additional arguments to `.f` within the map - for example, the
+following two statements are equivalent:
+
+```{r}
+mean_list <- map_dbl(val_list, mean, na.rm = TRUE)
+mean_list <- map_dbl(val_list, \(x) mean(x, na.rm = TRUE))
+```
+
+The first version should be avoided except where absolutely necessary as it can
+become confusing and/or unclear.
+
+### Note on Anonymous Functions
+
+If you have not come across anonymous functions before, these are very simple to
+construct - you specify the inputs to the function with a leading slash, then
+specify the mechanism.
+
+For example:
+
+```{r}
+f1 <- \(x) mean(x, na.rm = TRUE)
+f2 <- \(para1, para2) para1 ^ para2
+f3 <- \(a,b,c,d) (a + b) - (c ^ d) + 3
+```
+
+You can also nest these functions:
+
+```{r}
+f4 <- \(x, y) map(x, \(x_val) x_val + y)
+```
+
+If you have used anonymous functions before, you may be used to using the `~`
+notation with `.x`, `.y` and `.z`, or `..1`, `..2` etc. as parameters. This
+approach is no longer advised as it is unclear - for example, using this
+approach, this is how `f4` would be written:
+
+```{r}
+f4 <- ~ map(.x, ~ .x + .y, .y = .y)
+```
+
+This is messy and will cause issues if you are using `lintr` and/or
+`devtools::check()` to verify your code integrity. **Do not do this or you will
+be cursed by Hadley!**
+
+## Extending to `purrr::map2` and `purrr::pmap`
+
+If you want to extend to two (or more) parameter functions instead, we can use
+`purrr::map2` and `purrr::pmap`, and their relatives `purrr::map2_*` and
+`purrr::pmap_*`.
+
+For example, rewriting our earlier example:
+
+```{r}
+# Specify inputs
+numbers <- 1:10
+powers <- seq(from = 2, to = 20, by = 2)
+
+numbers
+powers
+
+# Apply vectorisation
+big_nums <- map2_dbl(numbers, powers, \(x,y) x ^ y)
+
+big_nums
+```
+
+For `purrr::pmap` the input should be a named list of lists. The names of these
+lists should be the same as the parameters in the anonymous function:
+
+```{r}
+# Load library for dataset
+suppressWarnings(suppressPackageStartupMessages(library(dplyr)))
+
+# Specify inputs
+inputs_list <- list(
+  character_nm <- starwars$name,
+  character_hgt <- starwars$height,
+  character_wgt <- starwars$mass,
+  character_typ <- starwars$species
+)
+
+# Apply pmap
+description <- pmap_chr(
+  inputs_list,
+  \(character_nm, character_hgt, character_wgt, character_typ) paste(
+    character_nm,
+    "is a",
+    character_typ,
+    "character in the Star Wars franchise. They are",
+    character_hgt,
+    "cm tall and weigh approximately",
+    character_wgt,
+    "kg under standard Earth gravity."
+  )
+)
+  
+description[1:5]
+```
+
+## Using `purrr::walk` instead of `purrr::map`
+
+On occasion, we may wish to have the effects of a function, but not
+necessarily care about the return. In these cases, we can replace `purrr::map`,
+`purrr::map2` and `purrr::pmap` with `purrr::walk`, `purrr::walk2` and
+`purrr::pwalk`.
+
+For example, if we want to use `rlang::warn` to print a warning to console,
+then most of the time we will not care about the actual return - in this case we
+can use a `walk`-style function instead of a `map`-style function:
+
+```{r}
+# Load library
+suppressWarnings(suppressPackageStartupMessages(library(rlang)))
+
+# Apply walk to earlier output
+walk(description[1:5], warn)
+```
+
+# Parallelisation using `furrr`
+
+For applications of complex functions to large amounts of data, `purrr`-style
+methods may still be slow. However, in these cases we can easily take advantage
+of the resources available on modern computers to apply a several-fold
+improvement in the runtime.
+
+All of the techniques mentioned so far are **serial** functions - that is that
+the use a single process running on the CPU at a given time. However, most
+modern systems are actually constructed so that multiple processes can be run
+concurrently - that is that we can have **parallel** processes.
+
+```{r}
+# Load libraries
+suppressWarnings(suppressPackageStartupMessages(library(future)))
+suppressWarnings(suppressPackageStartupMessages(library(furrr)))
+
+availableCores()
+```
+
+Using the above command we can see that the latest generation of DHSC laptops
+are built with `8` cores - which allows us to do (up to) `8` tasks concurrently.
+
+## Considerations Regarding Parallel Computation
+
+It should be noted that parallelisation isn't a "magic bullet" - there is some
+overhead in terms of starting up and closing down the parallel process, so it
+should only be used where the task is large enough to warrant this additional
+time.
+
+For example, if we assume that starting up and closing down the parallel
+process takes 1s each then a task which takes 0.1s per cycle, and requires 1600
+cycles then:
+
+*   In serial, this would take 1600 * 0.1 = 160s
+*   In parallel, this would take (1600/8) * (1.0 + 0.1 + 1.0) = 200 * 2.1 = 420s
+
+However, if we assume the task takes 10s per cycle:
+
+*   In serial, this would take 1600 * 10 = 16000s
+*   In parallel, this would take (1600/8) * (1 + 10 + 1) = 200 * 12 = 2400s
+
+It should be clear that the first task should be run in serial, whilst using a 
+parallel approach for the second task is more efficient.
+
+## Suitability for Parallel Computation
+
+We should also note that not all calculations are suitable for use in a
+parallel environment. For example, if we have a function such as the below:
+
+```{r}
+# Specify inputs
+data <- 1:10
+
+# Initialise outputs
+outputs <- c()
+
+# Run for loop
+for (i in seq_along(data)) {
+  outputs[i] <- sum(outputs) + data[i]
+}
+
+outputs
+```
+
+This function would _not_ be suitable for parallelisation as each entry is
+dependent upon the previous result, which cannot be accessed using
+parallelisation!
+
+## Moving from `purrr` to `furrr`
+
+As we already know how to write code in `purrr`, moving to `furrr` is (mostly)
+very easy.
+
+If we take our Star Wars example from above, we can do some simple conversion to
+get the following:
+
+```{r}
+# Apply parallel map
+description_parallel <- future_pmap_chr(
+  inputs_list,
+  \(character_nm, character_hgt, character_wgt, character_typ) paste(
+    character_nm,
+    "is a",
+    character_typ,
+    "character in the Star Wars franchise. They are",
+    character_hgt,
+    "cm tall and weigh approximately",
+    character_wgt,
+    "kg under standard Earth gravity."
+  )
+)
+  
+description_parallel[1:5]
+```
+
+In this example, we simply need to add `future_` in front of our `purrr`-based
+function - it's that simple!
+
+## Setting up the Environment
+
+I lied. It isn't.
+
+Well, it _almost_ is that simple, but the above code actually ran in serial, not
+parallel, as we didn't specify our parallel specification.
+
+This is done using the `future::plan()` function - there are four built-in
+options for this:
+
+*   `sequential` - this is the default plan and uses the `furrr` structure to
+run in serial.
+*   `multisession` - this is a parallel plan which uses the socketing version of
+parallelisation on a single machine.
+*   `multicore` - this is a parallel plan which uses the forking version of
+parallelisation on a single machine. This can be more efficient than
+`multisession`, but will **not** work on Windows-based computers.
+*   `cluster` - the is a parallel plan which uses parallelisation across
+multiple machines (for example, if you're working on a HPC system).
+
+This plan is implemented as follows:
+
+```{r}
+# Setup parallel plan - specify plan and number of workers
+plan(multisession, workers = 6)
+
+# Apply parallel map
+description_parallel <- future_pmap_chr(
+  inputs_list,
+  \(character_nm, character_hgt, character_wgt, character_typ) paste(
+    character_nm,
+    "is a",
+    character_typ,
+    "character in the Star Wars franchise. They are",
+    character_hgt,
+    "cm tall and weigh approximately",
+    character_wgt,
+    "kg under standard Earth gravity."
+  )
+)
+
+# Restore default plan
+plan(sequential)
+  
+description_parallel[1:5]
+```
+
+## Taking `furrr` Further
+
+### Exporting Objects and Packages
+
+If your `furrr` code uses external objects - such as packages or objects - then
+these _should_ automatically be gathered and exported into the parallel jobs.
+However, this does not always work - sometimes the computer gremlins don't like
+you!
+
+If this happens, don't worry - you can explicitly specify objects and packages
+to export using `furrr::furrr_options()`. For example, say we want to explicitly
+export the `inputs_list` object and the `dplyr` package to our jobs. This can be
+done as follows:
+
+```{r}
+# Setup parallel plan - specify plan and number of workers
+plan(multisession, workers = 6)
+
+# Apply parallel map
+description_parallel <- future_pmap_chr(
+  inputs_list,
+  \(character_nm, character_hgt, character_wgt, character_typ) paste(
+    character_nm,
+    "is a",
+    character_typ,
+    "character in the Star Wars franchise. They are",
+    character_hgt,
+    "cm tall and weigh approximately",
+    character_wgt,
+    "kg under standard Earth gravity."
+  ),
+  .options = furrr_options(
+    globals = c("inputs_list"),
+    packages = c("dplyr")
+  )
+)
+
+# Restore default plan
+plan(sequential)
+  
+description_parallel[1:5]
+```
+
+### Randomness in `furrr`
+
+Working with random numbers in parallel is usually a nightmare - it is very
+difficult to ensure consistency across machines and setups.
+
+Thankfully, `furrr` makes this very easy! Unless explicitly disabled, randomness
+within `furrr` is consistent, no matter the plan or number of workers! It will
+return a different result to the same code in `purrr`, but is much better than
+the alternative! For example:
+
+```{r}
+# Setup parallel plan - specify plan and number of workers
+plan(multisession, workers = 6)
+
+# Apply parallel map
+rng_1 <- future_map(
+  1:10,
+  \(x) rnorm(x, mean = 0, sd = 1),
+  # Specify master seed
+  .options = furrr_options(seed = 1234)
+)
+
+# Setup parallel plan - specify plan and number of workers
+plan(multisession, workers = 4)
+
+# Apply parallel map
+rng_2 <- future_map(
+  1:10,
+  \(x) rnorm(x, mean = 0, sd = 1),
+  # Specify master seed
+  .options = furrr_options(seed = 1234)
+)
+
+# Restore default plan
+plan(sequential)
+
+# Apply parallel map
+rng_3 <- future_map(
+  1:10,
+  \(x) rnorm(x, mean = 0, sd = 1),
+  # Specify master seed
+  .options = furrr_options(seed = 1234)
+)
+```
+
+As we can see the three results are identical:
+
+```{r}
+identical(rng_1, rng_2)
+identical(rng_1, rng_3)
+identical(rng_2, rng_3)
+```
