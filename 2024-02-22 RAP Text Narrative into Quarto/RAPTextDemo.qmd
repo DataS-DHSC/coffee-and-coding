@@ -1,0 +1,95 @@
+---
+title: Coffee and Coding Demo - RAP for text narrative
+format:
+  OHID-html: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# read in libraries and functions
+source("R/libraries.R")
+source("functions/format_text.R")
+```
+
+```{r get_narrative, include = FALSE}
+
+# define path for text narrative 
+# (Must be on local or shared drive - Sharepoint/Teams not yet working)
+path <- "//filepor10/DataLake$/IA_BirthDeaths/CKO_EandS/MortalityTrendsReport/"
+file <- "MortalityTrendsInEngland_CoffeeCodingDemo.docx"
+doc  <- paste0(path, file)
+
+# check text file has been recently downloaded
+warning(paste0("The text narrative file was last downloaded at ",
+               file.info(doc)$ctime, " and last modified at ", 
+               file.info(doc)$mtime,
+               ". If this is not the latest version, please re-download"))
+ 
+# Read in doc text
+doctext <- readtext(doc)$text
+  
+# Split into parts at breakpoints
+docparts <- str_split(doctext, "Chart!")[[1]]
+```
+
+
+
+``` {r}
+#| output: asis
+format_text(docparts[1])
+```
+
+``` {r}
+cat("plot taken from the plot_ly help file")
+fig <- add_lines(plot_ly(economics, x = ~date, y = ~unemploy/pop))
+fig
+```
+
+``` {r}
+#| output: asis
+format_text(docparts[2])
+```
+
+``` {r}
+cat("plot taken from the plot_ly help file")
+fig <- plot_ly(z = ~volcano, type = "surface")
+fig
+```
+
+``` {r}
+#| output: asis
+format_text(docparts[3])
+```
+
+``` {r}
+cat("CHART GOES HERE - not yet done")
+```
+
+``` {r}
+#| output: asis
+format_text(docparts[4])
+```
+
+``` {r}
+cat("CHART GOES HERE - not yet done")
+```
+
+``` {r}
+#| output: asis
+format_text(docparts[5])
+```
+
+``` {r}
+cat("CHART GOES HERE - not yet done")
+```
+
+``` {r}
+#| output: asis
+format_text(docparts[6])
+```
+
+``` {r}
+cat("CHART GOES HERE - not yet done")
+```
+
