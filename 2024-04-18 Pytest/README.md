@@ -12,4 +12,8 @@ Alternatively `pytest tests/file_name.py` will run all the tests in `file_name.p
 
 `pytest tests/file_name.py -k TestClass` or `pytest tests/file_name.py -k test_function` will only run a specific test/ group of tests.
 
-[Useful resource](https://realpython.com/pytest-python-testing/)
+### Useful resources
+
+* [RealPython Pytest Python Testing](https://realpython.com/pytest-python-testing/)
+
+* [Taeef Najib for Medium - Writing unit tests for your data science projects](https://medium.com/@taeefnajib/writing-unit-tests-for-your-data-science-projects-c3d46e98beb2)
