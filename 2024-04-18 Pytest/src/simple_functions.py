@@ -4,6 +4,7 @@ Script of basic functions
 """
 
 import time
+import warnings
 
 
 def add(x: int, y: int) -> int:
@@ -28,6 +29,10 @@ def wait_then_add(x: int, y: int, t: int = 5) -> int:
     """
     Wait t seconds, then add two integers x and y.
     """
+    if t >= 60:
+        warnings.warn(
+            UserWarning("You are about to wait for a very long time...")
+        )
     time.sleep(t)
     return add(x, y)
 

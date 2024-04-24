@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Pytest unit tests for `src/simple_functions.py`
+Pytest unit tests for `src/simple_functions.py`.
+
+Introduces 
 """
 
 from src.simple_functions import (
@@ -10,6 +12,7 @@ from src.simple_functions import (
 )
 import pytest
 import time
+import warnings
 
 
 class TestAdd:
@@ -69,6 +72,15 @@ class TestWaitThenAdd:
         time_taken = time.perf_counter() - start_time
         assert s == 2
         assert 0 <= time_taken - t <= 0.01
+
+    def test_wait_then_add_warnings(self, mocker, recwarn):
+        mocker.patch("src.simple_functions.add", return_value=2)
+        mocker.patch("time.sleep", return_value=None)
+        assert len(recwarn) == 0
+        wait_then_add(x=0, y=0, t=120)
+        assert (
+            len(recwarn) == 1
+        ), "A warning should have been raised as we will wait too long"
 
 
 # def test_floating_point_error():
