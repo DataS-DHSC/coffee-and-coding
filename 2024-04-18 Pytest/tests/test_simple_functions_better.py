@@ -12,7 +12,6 @@ from src.simple_functions import (
 )
 import pytest
 import time
-import warnings
 
 
 class TestAdd:
