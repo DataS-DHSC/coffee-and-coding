@@ -19,11 +19,11 @@ round(1.5,0)
 
 # This is important to note if you are rounding tables for publication.
 
-# Here is an alternative function to R's base round() function, which rounds x.5 values to the nearest even integer
+# Here is an alternative function to R's base round() function, which rounds x.5 values to the nearest integer
 
 round2 = function(x, n) {
   posneg = sign(x)
-  z = abs(x)*10^nS
+  z = abs(x)*10^n
   z = z + 0.5
   z = trunc(z)
   z = z/10^n
