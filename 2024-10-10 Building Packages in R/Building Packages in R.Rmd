@@ -1,0 +1,865 @@
+---
+title: 'Building Packages in R'
+author: 'Stephen Ashton'
+date: "`r Sys.Date()`"
+output:
+  slidy_presentation
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+The following packages are required for the examples below. Feel free to install
+as required:
+
+```{r, eval=FALSE}
+install.packages("covr")
+install.packages("cpp11")
+install.packages("DBI")
+install.packages("dbplyr")
+install.packages("devtools")
+install.packages("hexSticker")
+install.packages("httptest2")
+install.packages("httr2")
+install.packages("knitr")
+install.packages("lintr")
+install.packages("memoise")
+install.packages("mockery")
+install.packages("odbc")
+install.packages("pak")
+install.packages("pkgdown")
+install.packages("remotes")
+install.packages("rlang")
+install.packages("rmarkdown")
+install.packages("roxygen2")
+install.packages("spelling")
+install.packages("styler")
+install.packages("testthat")
+install.packages("tidyselect")
+install.packages("usethis")
+install.packages("withr")
+
+remotes::install_github("dreamRs/prefixer@v0.1.5")
+remotes::install_github("r-lib/lifecycle#180")
+```
+
+# Introduction
+
+This presentation will be spread across multiple Coffee and Coding sessions and is intended to take analysts through the process of building packages in R.
+
+Whilst the material will be presented in the context of package development, many of the tips, tricks and tools can be used more widely when working with R.
+
+It is also worth noting that not all of the material and techniques discussed are suitable for all projects. For example, whilst the inclusion of automated testing is recommended, for simpler packages or projects, it may not be the most efficient use of time and resource.
+
+This material is primarily based on my experiences developing `SPHERE`, although simpler examples are provided to aid in understanding. A more comprehensive guide to package development can be found in [R Packages](https://r-pkgs.org/) by Hadley Wickham and Jennifer Bryan.
+
+# Building a Package Skeleton
+
+All R packages follow a basic structure - in effect this is just a directory with a few key objects. These include a `DESCRIPTION` file, which stores package metadata, a `NAMESPACE` file, which stores the names of items in the package, and a subdirectory `R/`, which stores scripts defining objects within the package.
+
+Other files and subdirectories can be added into the package, many of which will be discussed in these slides. These can vary from somewhat small or simple items, such as those related to licensing, to larger and more complex items, such as those related to automated testing.
+
+A basic package skeleton can be automatically created using the `usethis` package as follows:
+
+```{r, eval=FALSE}
+usethis::create_package("~/OneDrive - Department of Health and Social Care/Documents/Building Packages in R/testDHSCpackage")
+```
+
+# Editing Package Metadata
+
+We can now open and edit the `DESCRIPTION` file, setting a title and description for the package.
+
+We can also add author information as a vector of `person()` function calls, including setting roles. The main roles often seen are:
+
+* `"cre"` should be for the package creator/maintainer - this is the primary point-of-contact for the package. Packages can only have one individual with this role.
+* `"aut"` should be used for authors who have made substantial contributions to the package code.
+* `"ctb"` should be used for authors who have made smaller contributions to the package.
+* `"ctr"` should be used for authors who have made contributions under contract.
+* `"cph"` should be used for copyright holders. The `comment` field can be used to specify if this only applies to subsections of the package.
+
+Within `SPHERE`, we use the following conventions:
+
+* `"cre"` is our team name and email as this will be a permanent point-of-contact.
+* `"aut"` is used for anyone within DHSC who has committed code to our work by completing a ticket and opening a pull request on GitHub.
+* `"ctb"` is used for anyone within DHSC who has provided notable support outside of directly committing code - for example, individuals who have provided significant advice that has steered code development.
+* `"ctr"` is used for organisations who can directly or indirectly contributed to our work when under contract.
+* `"cph"` is set as Crown copyright, with additional credits to ClinRisk Ltd. for code we have imported related to risk equations.
+
+We can also set a license using one of the helper functions within `usethis`. For this example, we shall use an MIT licence, although another licence may be more suitable for your needs (in `SPHERE`, we use a GPLv3+).
+
+```{r, eval=FALSE}
+usethis::use_mit_license(copyright_holder = "Crown copyright")
+```
+
+# Building our First Function (1)
+
+Say we have the following script that we want to convert into a function, and add into our package.
+
+```{r, eval=FALSE}
+library(dplyr)
+
+data <- mtcars
+
+values <- "mpg"
+groups <- c("cyl", "carb")
+
+average_values <- data |>
+  # Group by all of specified columns
+  group_by(across(all_of(groups))) |>
+  summarise(
+    # Take mean across specified columns
+    across(
+      all_of(values),
+      \(x) mean(x, na.rm = TRUE)
+    ),
+    # Ungroup after mean calculation
+    .groups = "drop"
+  )
+```
+
+# Building our First Function (2)
+
+It should be clear that the "function" version of the script should take `data`, `values` and `groups` as parameters, and return `average_values`.
+
+This can fairly simply be accomplished as follows:
+
+```{r, eval=FALSE}
+library(dplyr)
+
+mean_grouped <- function(data, values, groups) {
+  average_values <- data |>
+    # Group by all of specified columns
+    group_by(across(all_of(groups))) |>
+    summarise(
+      # Take mean across specified columns
+      across(
+        all_of(values),
+        \(x) mean(x, na.rm = TRUE)
+      ),
+      # Ungroup after mean calculation
+      .groups = "drop"
+    )
+
+  return(average_values)
+}
+
+mean_grouped(mtcars, "mpg", c("cyl", "carb"))
+```
+
+Where the `library()` call and call to the function itself are part of the implementation, we will drop these when including this function into our package.
+
+# Building our First Function (3)
+
+Without `library()` calls, the function doesn't necessarily know where it is supposed to be getting functions from - `group_by` isn't a default R function, for example - and we need to specify this. We shall do this using `roxygen2` tags.
+
+If you are already familiar with your function sources, you can add these directly, but it may be useful to use `prefixer` to support you.
+
+We can place our function definition in a new `.R` file and call `prefixer` via `Addins` > `Prefixer::`, which will open an interactive window in RStudio. This tool will help you prefix all of your function calls with the appropriate source packages - it should be noted that it will only suggest packages that are loaded into your R session. For example, if you have not loaded `dplyr` then `prefixer` will not offer this as an option.
+
+Going though this process with `dplyr` and `tidyselect` loaded via `library()` calls, we get the following prefixed function:
+
+```{r, eval=FALSE}
+mean_grouped <- function(data, values, groups) {
+  average_values <- data |>
+    # Group by all of specified columns
+    dplyr::group_by(dplyr::across(tidyselect::all_of(groups))) |>
+    dplyr::summarise(
+      # Take mean across specified columns
+      dplyr::across(
+        tidyselect::all_of(values),
+        \(x) mean(x, na.rm = TRUE)
+      ),
+      # Ungroup after mean calculation
+      .groups = "drop"
+    )
+
+  return(average_values)
+}
+```
+
+# Building our First Function (4)
+
+We now want to convert these prefixes into `roxygen2` tags. This again can be accomplished using `prefixer`.
+
+If you have a prefixed function, we can extract the relevant `roxygen2` tags by via `Addins` > `@importFrom`. We can then clear the prefixes via `Addins` > `Unprefix` to achieve the following:
+
+```{r, eval=FALSE}
+#' @importFrom dplyr summarise group_by across
+#' @importFrom tidyselect all_of
+mean_grouped <- function(data, groups, values) {
+  average_values <- data |>
+    # Group by all of specified columns
+    group_by(across(all_of(groups))) |>
+    summarise(
+      # Take mean across specified columns
+      across(
+        all_of(values),
+        \(x) mean(x, na.rm = TRUE)
+      ),
+      # Ungroup after mean calculation
+      .groups = "drop"
+    )
+
+  return(average_values)
+}
+```
+
+These `@importFrom` tags tell our package that we are using functions from elsewhere - for example, we are using a number of functions from `dplyr` and one from `tidyselect`.
+
+# Building our First Function (5)
+
+We should also add additional `roxygen2` tags to provide some documentation for this function.
+
+Key tags include:
+
+* `@title` which provides a short descriptive name for this function.
+* `@description` which provides a one or two sentence description of the function.
+* `@details` which provides a longer description of the function, including specific details on the methodology.
+* `@param` which provides details on each input parameter (this should be repeated as required).
+* `@return` which provides details on the returned value.
+
+The tag `@export` is also very important - this moves the function from an "internal" function (which can only be called by other functions within your package) to an external function (which will be made available as part of a `library()` call). For example, the function `accumulate()` is defined within `dplyr`, however as it is not exported, it will not be available to a general user.
+
+# Building our First Function (6)
+
+Adding in the suggested `roxygen2` tags, we get to our final function definition:
+
+```{r, eval=FALSE}
+#' @title Calculate grouped mean values
+#' @description Groups a dataframe and calculates mean value(s) by group.
+#' @details Takes a dataframe-style object and groups this by one or more
+#' user-specified columns. The mean value is taken by these groups across one or
+#' more user-specified columns.
+#' @param data A dataframe-style object.
+#' @param values A character vector of length one or greater. Entries in this
+#' vector should be names of columns present in `data`. These will be the
+#' columns across which the mean value is calculated.
+#' @param groups A character vector of length one or greater. Entries in this
+#' vector should be names of columns present in `data`. These will be the
+#' columns across which the `data` object is grouped.
+#' @importFrom dplyr summarise group_by across
+#' @importFrom tidyselect all_of
+#' @export
+mean_grouped <- function(data, values, groups) {
+  average_values <- data |>
+    # Group by all of specified columns
+    group_by(across(all_of(groups))) |>
+    summarise(
+      # Take mean across specified columns
+      across(
+        all_of(values),
+        \(x) mean(x, na.rm = TRUE)
+      ),
+      # Ungroup after mean calculation
+      .groups = "drop"
+    )
+
+  return(average_values)
+}
+```
+
+We can now save this completed function definition within our package as `R/mean_grouped.R`.
+
+# Building our First Function (7)
+
+Before this function is complete, we must resolve our dependencies.
+
+Where we have used `dplyr` and `tidyselect`, we must add these packages to our `DESCRIPTION` file. We have also used the inbuilt pipe (`|>`), which first appeared in R 4.2, so we need to set this version of R as our minimum version.
+
+This can be done manually or via `usethis` as follows:
+
+```{r, eval=FALSE}
+usethis::use_package("R", type = "Depends", min_version = "4.2.0")
+usethis::use_package("dplyr")
+usethis::use_package("tidyselect")
+```
+
+Dependencies are split into:
+
+* `"Depends"` which, for most packages, is usually only used for the version of R required.
+* `"Imports"` is for packages used by your package (this is the default `type` parameter in the helper function).
+* `"Suggests"` is for packages that aren't used directly by your package but are related to its broader functionality or provide support/enhancements.
+
+Finally, we want to build our documentation and `NAMESPACE` file. This can be done via the following call:
+```{r, eval=FALSE}
+roxygen2::roxygenise()
+```
+
+# Checks and Tests (1)
+
+The best tool to check and test your package is to use the following function call:
+
+```{r, eval=FALSE}
+devtools::check()
+```
+
+This will attempt to build your package, as well as running standard CRAN-style checks to identify potential issues. If you have any automated testing (discussed later), these will also be included within this process. This will return a summary of these processes across three metrics:
+
+```{r, eval=FALSE}
+0 errors ✔ | 0 warnings ✔ | 0 notes ✔
+```
+
+Ideally the return would look like the above, with nothing being flagged. However, sometimes these checks can be on the cautious side and may flag some notes (or warnings) - these should be carefully reviewed, but do not always require immediately resolution. For example, in `SPHERE` we get a note that our package exceeds the recommended size - in the long-term we may resolve this by splitting our work into subpackages, but this is not of immediate concern.
+
+# Checks and Tests (2)
+
+Before we discuss more complex testing, there is a fairly simple automated test we can add that will automatically check the spelling in function documention (created via the `roxygen2` tags), vignettes and the `DESCRIPTION` file. This can be implemented using:
+
+```{r, eval=FALSE}
+usethis::use_spell_check(lang = "en-GB")
+```
+
+This will flag any words outside of its standard dictionary as warnings during `devtools::check()`. If you wish to add custom words, you can create a file `inst/WORDLIST` and place one word per line. If you know your package is free of spelling errors, you can add all non-standard words to this file via the following function call:
+
+```{r, eval=FALSE}
+spelling::update_wordlist()
+```
+
+# Checks and Tests (3)
+
+We can also setup stylistic checks (also known as linting) - these cannot be built into `devtools::check()`, but are relatively simple to undertake via:
+
+```{r, eval=FALSE}
+lintr::lint_package()
+```
+
+This will scan your package and flag anything that deviates from the standard style guide. If you wish to customise these check or provide exceptions, you can create a `.lintr` file in the root of your package and use `linters` and `exclusions` specifications.
+
+For example, adding the following will include _all_ available linting from the `lintr` and `lifecycle` packages, except for `implicit_integer_linter` (which flags instances where you have not properly declared numbers as integers or floats - that is `1L` or `1.0`, rather than just `1`).
+
+```{eval=FALSE}
+linters: all_linters(
+    # Use default and lifecycle linters ----------------------------------------
+    # lifecycle_linter requires https://github.com/r-lib/lifecycle/pull/180
+    packages = c("lintr", "lifecycle"),
+    # Disable specific linters -------------------------------------------------
+    implicit_integer_linter = NULL
+  )
+```
+
+We include `lifecycle` linting in our checks as this will flag instances where we are using unstable `tidyverse` functions - either those that are depreceated or those that are still experimental and may be subject to sudden changes in behaviour or structure.
+
+To include exceptions - either because of a false-positive or to silence a message about an approved deviation - you add details similar to the below:
+
+```{eval=FALSE}
+exclusions: list(
+    # Exclude all linting in cpp11 file ----------------------------------------
+    "R/cpp11.R",
+    # Add linting exclusions for longer term TODOs -----------------------------
+    "R/dummy-function.R" = list(todo_comment_linter = 528)
+  )
+```
+
+In this example, _all_ linters are disabled within `R/cpp11.R` and the `todo_comment_linter` is disabled specifically on line 528 of `R/dummy-function.R`.
+
+# Checks and Tests (4)
+
+The easiest way to resolve most linting issues is to automatically style your package using:
+
+```{r, eval=FALSE}
+styler::style_pkg()
+```
+
+However, there may still be linting issues that remain and must either be excluded or resolved manually.
+
+A particularly nasty linting issue to resolve is in relation to a concept call "cyclomatic complexity". This in essence refers to the number of distinct routes that can be followed within your function - for example, if you have a function that simply consists of an if-else statement, then the cyclomatic complexity of this function would be 2.
+
+If you have a function with high cyclomatic complexity, then this could be challenging to check, so most style guides enforce a limit on this.
+
+The easier way to reduce this complexity is to use subfunctions - for example, you may have a function as follows:
+```{r, eval=FALSE}
+example_fn <- function(n) {
+  if (is.integer(n)) {
+    # Do something complex
+  } else {
+    # Do something else complex
+  }
+}
+```
+
+In this case, you can split the function up into subfunctions:
+```{r, eval=FALSE}
+example_fn <- function(n) {
+  if (is.integer(n)) {
+    example_fn_int(n)
+  } else {
+    example_fn_dbl(n)
+  }
+}
+```
+
+This approach should be carefully balanced though - whilst this makes the function(s) easier to read in isolation, it could make it more challenging to understand as a whole.
+
+# Checks and Tests (5)
+
+However, in the space of automated testing, the largest toolset at our disposal is the `testthat` package for implementing unit testing.
+
+This can be added into your package using the helper function:
+
+```{r, eval=FALSE}
+usethis::use_testthat()
+```
+
+Unit tests (using `testthat`) should be placed within `tests/testthat/` and mirror the files in `R/`. For example, the function we created earlier, which we have saved as `R/mean_grouped.R` should have its unit tests stored within `tests/testtthat/test-mean_grouped.R`.
+
+This file can automatically be created using the helper:
+
+```{r, eval=FALSE}
+usethis::use_test("mean_grouped.R")
+```
+
+# Checks and Tests (6)
+
+Before going into detail on the specifics, which should define what we mean by unit testing.
+
+Unit testing is placed at the lowest level of the so-called "V-Model" for software development and is intended to provide assurance of code against low-level design specification. Unit testing works with single blocks of code or functions - it is not testing how parts of the code interact (integration testing), nor how the code interacts with the broader system design (system testing) nor the business requirements (user acceptance testing).
+
+Unit testing often meets the following specifications:
+
+* It should be _proportional_ - you cannot test everything, so it is often better to test key behaviours across a wide number of functions than it is to test a large number of behaviours on only a single function.
+* It should be _scalable_ - you can always add more unit tests as you continue development. Indeed, it is often seen as good practice when doing bugfixes to add a corresponding test to prevent the bug from occuring again (without being caught by your test).
+* It should be _isolated_ - your unit tests should be testing behaviour of just your code. If you have code that reaches out to an API and a test fails, you do not know if it is a failure of the code, or an external failure from the API provider.
+
+# Checks and Tests (7)
+
+The test file will consist of multiple calls to the function `test_that()`. Each of these calls should test a distinct part of the function and should provide a short string describing the test, following by a procedure using the function that would generate a known result, which is then compared using `expect_*()` statements.
+
+For example, we could write the following unit test for our function:
+
+```{r, eval=FALSE}
+testthat::test_that(
+  "no grouping calculates correctly",
+  {
+    expected_result <- dplyr::summarise(
+      dplyr::starwars,
+      mass = mean(mass, na.rm = TRUE)
+    )
+
+    test_result <- mean_grouped(
+      data = dplyr::starwars,
+      values = "mass",
+      groups = NULL
+    )
+
+    testthat::expect_identical(test_result, expected_result)
+})
+```
+
+This test compares the results from our function against a "trusted" alternative approach which should produce the same result.
+
+# Checks and Tests (8)
+
+Writing good tests for a function is (unfortunately) more of an art than a science. There are some broad principles that you should follow, but there is no "magic bullet" approach that can be used.
+
+Tests should look at representative cases - if we have a very simple function that calculates the square of a number, then it would be impossible to test every possible input, so we should pick representative inputs. What happens for a positive integer? A negative integer? Zero? Floating point values? Strings?
+
+Tests should try every possible route though your function - if we have an if-else statement, then we should write tests that would trigger both conditions.
+
+A good tool for assessing how much of your package is tested is the `covr` package - this doesn't tell you if you're testing everything sufficiently, but will report the proportion of the lines of code in your package that are called within unit tests (e.g. if you only called one half of an if-else statement in your test, then this will report below 100% for this function). A coverage report can be generated using the following:
+
+```{r, eval=FALSE}
+covr::report()
+```
+
+# Documentation (1)
+
+Alongside function documentation generated by `roxygen2` tags, it can often be useful to create vignettes, especially in larger packages.
+
+Vignettes are used as a broader-level format for documenting your package and may cover a collection of functions with related behaviours or be intended to guide your users though a certain process.
+
+For example, `vignette("two-table", package = "dplyr")` discusses using `dplyr` to combine data from two (or more) tables, such as using joins and other set operations, while `vignette("new-backend", package = "dbplyr")` discusses the process for adding a new database backend into `dbplyr`.
+
+Writing vignettes for your package is fairly simple as they are primarily an RMarkdown document. This document should be saved in a specific place within your package (`vignettes/`) and declare that it is a vignette in the setup. Changes are also required in your `DESCRIPTION` file to setup the builder (`knitr`) required for your vignettes. The easiest way to create your first vignette is to use the following helper function - this will create the file `vignettes/test_vignette.Rmd` that has the title 'Test Vignette':
+
+```{r, eval=FALSE}
+usethis::use_vignette(name = "test_vignette", title = "Test Vignette")
+```
+
+Vignettes will automatically be included in the spelling check discussed earlier.
+
+# Documentation (2)
+
+You may have noticed earlier that when we created our `DESCRIPTION` file, the following version was added:
+
+```{eval=FALSE}
+Version: 0.0.0.9000
+```
+
+Version numbers are usually formed of 3 parts:
+
+* The major version (first digit) will change infrequently and represents a significant change or milestone in your package development. Usually there will not be any backwards compatibility between major versions.
+* The minor version (second digit) will change semi-frequently and represents a notable change or addition to your package.
+* The patch version (third digit) will change when required and represents a minor change to your package. These are usually bugfixes or similar corrections.
+
+The can also add a fourth digit, the build version - this is usually used for development changes only and by convention starts at 9000 and is iterated for each change (e.g. merging of a GitHub branch). When you release a package, you should drop this fourth digit.
+
+This numbering system is known as semantic versioning and versions are sorted by these digits. Whenever you change one digit, all "lower" digits reset to zero - so if you release a minor version, you would go from `3.11.8` to `3.12.0` (for example).
+
+# Documentation (3)
+
+Controlling the version of your package and providing clear release notes is important for helping your package users understand how changes will affect their usage. These changes should be documented in a `NEWS.md` file located in the root of your package.
+
+A basic versioning file can be created using the following:
+
+```{r, eval=FALSE}
+usethis::use_news_md()
+```
+
+Additions should be added under the version header and usually take the form of bullet points. Some supporting text describing the version, or even subsections (using `##`) can be added depending on the size of the release. For larger releases, subsections are often used to note new features, features that have been removed and any changes that are likely to break (or have an otherwise large impact) on the code of your package users.
+
+The version of your package can be updated via one of the following command:
+```{r, eval=FALSE}
+usethis::use_version()
+```
+
+This will prompt you to specify which part of the version you are updating and will update the `DESCRIPTION` file and headings within `NEWS.md` as appropriate.
+
+# Documentation (4)
+
+It is also typically to add a README file to your package. This should give an overview of the content of your package as well as providing installation instructions and examples of key functions.
+
+This file can be initiated (with dummy content) via the helper function:
+```{r, eval=FALSE}
+usethis::use_readme_rmd()
+```
+
+If you want to include code examples with outputs, you will need to render the file using:
+```{r, eval=FALSE}
+devtools::build_readme()
+```
+
+It is common to add your package logo and badges to this file.
+
+You can add the code for most common badges can be created using the helper functions from `usethis` - for example, the following code will add a badge reporting the CRAN status of your package:
+```{r, eval=FALSE}
+usethis::use_cran_badge()
+```
+
+Package logos can be in a variety of formats, but it is usually typical to create one using the `hexSticker` package, before using using code such as the following to add it into your README:
+```{r, eval=FALSE}
+usethis::use_logo("mylogo.png")
+```
+
+# `pak` configurations
+
+NB: `pak` is currently not operational on the DHSC laptops - we are hoping to resolve this with the updated release of R
+
+When performing certain operations related to your package, we may wish to use certain supporting packages. For example, our package may not directly use or enhance `lintr`, but we may want to specify it as a requirement for performing development work on our package.
+
+In these cases, we can add package configurations - these provide an optional list of packages that can be installed to support a certain task and are added to our `DESCRIPTION` file. These configurations are used within `pak`, which is a package installation tool that provides enhanced features compared to base R.
+
+For example, to add the packages we need for linting, we can create a package configuration for these by adding the following to our `DESCRIPTION` file:
+
+```{eval=FALSE}
+Config/Needs/lint: lintr, tidyverse, r-lib/lifecycle#180
+```
+
+This specifies a package configuration that will require our entire package, as well as release versions of `lintr` and `tidyverse` and PR-180 of `lifecycle`.
+
+To install this configuration of our local package, we can call:
+
+```{r, eval=FALSE}
+pak::local_install(dependencies = c("all", "Config/Needs/lint"))
+```
+
+Similarly, we can install the `website` configuration of dplyr via:
+
+```{r, eval=FALSE}
+pak::pkg_install("dplyr", dependencies = c("all", "Config/Needs/website"))
+```
+
+These configurations are useful to ensure that all developers working on your package have the same suite of tooling packages, as well as being used in GitHub Actions (discussed later).
+
+# Including Data (1)
+
+Whilst you should never include sensitive data within your package, it can often be useful to include example data - especially if your package related to data manipulation or cleaning. For example, `dplyr::starwars` is included within the `dplyr` package and is regularly referenced throughout many of the examples and documentation for this package.
+
+The best way to do this is to first write a script that will build your example data within the `data-raw` directory. To set this up, we can use the helper command:
+
+```{r, eval=FALSE}
+usethis::use_data_raw("my_example_data")
+```
+
+This script will automatically include the helper function `usethis::use_data()` which will setup your package to supply data, before storing the example data within the `data` directory.
+
+Similar to functions, you should document your data - this can be done by creating a file, such as `R/my_example_data.R` and using `roxygen2` tags to document, followed by the name of the dataset. For example:
+```{r, eval=FALSE}
+#' @title Example data
+#' <OTHER ROXYGEN TAGS>
+#' 
+"my_example_data"
+```
+
+# Advanced Functions (1)
+
+Whilst we covered basic `roxygen2` documentation above, there are additional tags that can be used to better support the users of your package:
+
+* `@examples` should provide executable R code that shows how to use your function. If you want to deliberately include code that errors (for illustrative purposes), you can wrap this in `\dontrun{}`.
+* `@seealso` is used for pointing to other functions, either within your package or elsewhere, that are related. For example, if you function extends a function found elsewhere, you may wish users to familarise themselves with original function.
+* `@noRd` is used to supress documentation for a function. This is most commonly used for internal functions (where there is not an `@export` tag).
+* `@keywords` is used to help users search through your documentation and may contain broad topics and themes.
+* `@format` is specific to documenting data and should give an overview of the dataset structure, such as definitions of each of the variables.
+* `@source` is specific to documenting data and should give a source for your dataset such as a URL.
+* `@slot` is specific to S4 classes and should define the slots of the class in a similar manner to how `@param` is used for a function.
+* `@rdname` can be used to join documentation together. For example, you may have a larger function `big_function()` that calls subfunctions depending on the inputs (e.g. `big_function_int()`, `big_function_chr()` etc.) - in this case you may wish to document these subfunctions as part of `big_function()` by having a `roxygen2` block similar to:
+
+```{r, eval=FALSE}
+#' @rdname big_function
+#' @export
+#' 
+big_function_int <- function(...) {
+  ...
+}
+```
+
+# Advanced Functions (2)
+
+Caching functions can be particularly useful if they are slow or complex and are expected to be called a great number of times by a single user.
+
+This is a process of storing input-output pairs in memory and then reusing these if given the same inputs (rather than using the actual function).
+
+For example, say we have a function that takes an input `x`, does some complex calculation and returns a result `y`. If we cache this function and give it `x = 2`, it will initially run the full function and return a result, say `y = 24`. This will be the same for each call with a 'new' input.
+
+On subsequent calls, it will check this input, and if it is identical stored call - say `x = 2` again - it will immediately return the stored result, rather than performing the calculation.
+
+This is done using the `memoise` package.
+
+Caching (or memoisation) is not usually performed by the end user, but is instead enabled during package startup. Tasks like this are build into so-called hooks - functions that are called when the package is loaded or removed from the namespace within R. These functions must be stored within `R/zzz.R` as this will be the last file called during your package build, so has access to the rest of your package. The name and inputs to each hook are fixed - the hook called when a package is loaded must be named `.onLoad` and take `libname` and `pkgname` as arguements.
+
+For example, the following code will enable caching of the function `example_fn` (defined elsewhere in our package) when the package is loaded through (for example) a `library()` call.
+
+```{r, eval = FALSE}
+#' @importFrom memoise memoise
+#' @noRd
+#'
+.onLoad <- function(libname, pkgname) {
+  example_fn <<- memoise(example_fn)
+}
+```
+
+Hooks (especially when caching) are one of the few occasions where 'global assignment' (i.e. `<<-`) may be used. This method assigns a value or object _outside_ of the context of the function, rather than 'standard' assignment (i.e. `<-`) where the value is only assigned within the function itself.
+
+# Advanced Functions (3)
+
+In certain circumstances, you may wish to include non-R code within your package - for example, in SPHERE, we use published risk equations which supply their calculations as open-source C++ functions (although we acknowledge their limited copyright in our `DESCRIPTION`).
+
+This can be done for a number of languages, but C++ is the most common.
+
+For C++, this can be done using the `cpp11` package and can be initiated via:
+
+```{r, eval=FALSE}
+usethis::use_cpp11()
+```
+
+This will create and setup a file `R/testDHSCpackage-package.R` as well as modifying the `DESCRIPTION` file to support the use of C++. It will also create an example file within the `src/` directory (where all external code should be placed).
+
+To edit an external C++ file, two small changes should be made (which can be seen in the example file):
+
+* We add `#include <cpp11.hpp>` as a directive to the declarations at the top of the file (these are similar to `library()` calls within R)
+* We add `[[cpp11::register]]` above each function definition to make it available for use within R.
+
+To finalise this process, we call `roxygen2::roxygenise()`. This will create (or update) two new files, `src/cpp11.cpp` and `R/cpp11.R` which integrate the C++ code into your package.
+
+Your C++ files will be compiled when your package is installed - on Windows, this is done using RTools, whilst on most Unix systems gcc will be used.
+
+# Advanced Unit Testing (1)
+
+We may have functions within our package that require external dependencies - API calls, database connections, environment settings. Best practice dictates that we should have unit tests for these, but how do we write these tests in a manner that still meets the requirement (discussed above) for unit tests to be isolated?
+
+This is done though mocking and/or stubbing. A variety of packages are available that perform these functions, but include `httptest2`, `mockery` and `withr`.
+
+Say we have the following (simple) function that returns an informative text string based on the environmental variable `NUMBER_OF_PROCESSORS`:
+
+```{r, eval=FALSE}
+processorcount_str <- function() {
+  count_str <- paste(
+    "This computer has",
+    Sys.getenv("NUMBER_OF_PROCESSORS"),
+    "processors available."
+  )
+  
+  return(count_str)
+}
+```
+
+Where `NUMBER_OF_PROCESSORS` will vary based on the computer (an external dependency), we can mock this variable using `withr` and have an isolated test:
+
+```{r, eval=FALSE}
+testthat::test_that(
+  "processor count correct",
+  {
+    withr::with_envvar(
+      new = c(NUMBER_OF_PROCESSORS = 20L),
+      {
+        expected_result <- "This computer has 20 processors available."
+        test_result <- processorcount_str()
+        
+        testthat::expect_identical(test_result, expected_result)
+      }
+    )
+  }
+)
+```
+
+# Advanced Unit Testing (2)
+
+For API requests, we have to take a different approach using `httptest2`. Say we have the following function that queries the NOMIS API:
+
+```{r, eval=FALSE}
+api_agency <- function() {
+  
+  response <- httr2::request("https://www.nomisweb.co.uk/api/v01/dataset") |>
+    httr2::req_url_path_append("NM_2002_1") |>
+    httr2::req_url_path_append("gender") |>
+    httr2::req_url_path_append("def.sdmx.json") |>
+    httr2::req_timeout(120) |>
+    httr2::req_perform() |>
+    httr2::resp_body_json()
+  
+  agency <- response$structure$codelists$codelist[[1]]$agencyid
+  
+  return(agency)
+}
+```
+
+# Advanced Unit Testing (3)
+
+To test this, we can use the following unit test using the `httptest2::with_mock_dir` wrapper:
+
+```{r, eval=FALSE}
+testthat::test_that(
+  "nomis request successfully received",
+  {
+    httptest2::with_mock_dir(
+      testthat::test_path("mock_data", "api_agency")
+      {
+        expected_result <- "NOMIS"
+        test_result <- api_agency()
+        
+        testthat::expect_identical(test_result, expected_result)
+      }
+    )
+  }
+)
+```
+
+The first time this test is run, the actual API will be called and can be checked to ensure it is a 'correct' response. This data will be stored within `tests/testthat/mock_data/api_agency` and all subsequent calls of this test will use the stored result.
+
+# Advanced Unit Testing (4)
+
+This approach is also useful for testing the behaviour of non-standard responses. For example, we can simulate and test how this function behaviours under a failure of the API:
+
+```{r, eval=FALSE}
+testthat::test_that(
+  "API failure correctly handled",
+  {
+    httptest2::without_internet({
+      testthat::expect_error(api_agency())
+    })
+  }
+)
+```
+
+# Advanced Unit Testing (5)
+
+For more complex cases, we can use a technique called stubbing. Say we have the following function - this connects to a Microsoft SQL database and returns the version that is being run:
+
+```{r, eval=FALSE}
+mssql_version <- function() {
+  mssql_conn <-  DBI::dbConnect(
+        odbc::odbc(),
+        Driver = "ODBC Driver 17 for SQL Server",
+        Server = "http://www.someserver.com/examplesql",
+        Database = "MyDatabase",
+        Encrypt = "yes",
+        Trusted_Connection = "yes",
+        TrustServerCertificate = "yes",
+        Encoding = "latin1",
+        Timeout = 60
+      )
+  
+  mssql_version <- as.character(attr(mssql_conn, "version"))
+  
+  return(mssql_version)
+}
+```
+
+# Advanced Unit Testing (6)
+
+As in the previous examples, we shouldn't test with the actual database as this would be an external dependency. To get around this, we stub the function - replacing the call to the external dependency (in this case `dbConnect`) with a fixed result using the `mockery::stub()` function:
+
+```{r, eval=FALSE}
+testthat::test_that(
+  "MSSQL version checked correctly",
+  {
+   mockery::stub(
+     where = mssql_version, 
+     what = "DBI::dbConnect", 
+     how = dbplyr::simulate_mssql(version = "17.5"),
+     depth = 1
+    )
+    
+    expected_result <- "17.5"
+    test_result <- mssql_version()
+    
+    testthat::expect_identical(test_result, expected_result)
+  }
+)
+```
+
+In this example, we have used a specific function (one designed to simulate a Microsoft SQL database connection), but this could also be a fixed result or a custom function.
+
+The syntax of `mockery::stub()` is:
+
+* `where` - this is the function call you want to modify
+* `what` - this is a string naming the subfunction you want to replace/stub
+* `how` - this should be what the replacement/stubbed value is
+* `depth` - this is how "deep" the stubbing should go - where `dbConnect()` is called directly by `mssql_version()`, the depth is `1`. If we wanted to stub a function called within `dbConnect()`, the depth would be `2`, etc.
+
+# Sharing Documentation (1)
+
+The most common way to share documentation is via a `pkgdown` site such as the one for [`dplyr`](https://dplyr.tidyverse.org/).
+
+This combines documentation from `roxygen2` tags and vignettes, along with supplemental information from files such as `DESCRIPTION`, `README.md`, `LICENCE` and `NEWS.md`. It is often deployed and updated as a GitHub Pages site via an automated action (discussed below) and, unless a vanity/custom URL is used, will take the form `https://<ORG>.github.io/<REPO>`. For SPHERE, we have `https://dhsc-govuk-internal.github.io/SPHERE-modelling-platform`.
+
+This functionality can be initiated using the following helper function:
+
+```{r, eval=FALSE}
+usethis::use_pkgdown()
+```
+
+Most sites created with `pkgdown` will have a somewhat consistent structure and layout, although some theming and design elements can be controlled via the `_pkgdown.yml` file.
+
+To see a demo of your site, you can build a local copy using the following:
+
+```{r, eval=FALSE}
+pkgdown::build_site()
+```
+
+It should be noted that some functionality may be limited when running locally.
+
+# GitHub Actions
+
+GitHub Actions are automated pipelines that can undertake certain processes when you undertake certain processes on GitHub - for example, when you open a pull request or merge a commit into a particular branch.
+
+The following helper functions will create common automated actions:
+
+```{r, eval=FALSE}
+usethis::use_github_action("check-standard")
+usethis::use_github_action("pr-commands")
+usethis::use_github_action("pkgdown")
+```
+
+The first of these will automatically run `R CMD check` for your package across a number of combinations of operating systems and versions of R. This is good if you are planning on submitting to CRAN or a similar repository. This check will be automatically run whenever a pull request or push is made targetting the `main` or `master` branch.
+
+The second enables commands to be run from pull requests. If `/document` is added as a comment on an open pull request, then `roxygen2::roxygenise()` will be run and the pull request updated. Similarly, if `/style` is added, then `styler::style_pkg()` will be run.
+
+The third action will automatically update your `pkgdown` site whenever a pull request or push is made targeting the `main` or `master` branch. This site will be built in a separate branch named `gh-pages`. You may need to have setup your GitHub Pages site before this can be used - there is a helper function that can do this:
+
+```{r, eval=FALSE}
+usethis::use_github_pages()
+```
+
